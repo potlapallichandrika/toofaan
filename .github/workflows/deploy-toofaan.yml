@@ -8,12 +8,15 @@ jobs:
   deploy:
     runs-on: self-hosted
 
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       # 1. Checkout code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. Deploy files safely (fix permission issues)
+      # 2. Deploy to server (safe + no permission issues)
       - name: Deploy to Server
         run: |
           sudo rsync -av --no-group \
@@ -25,12 +28,13 @@ jobs:
             --exclude='uploads/' \
             ./ /var/www/html/toofaan/
 
-      # 3. Set correct ownership
+      # 3. Fix permissions (important for PHP/Moodle)
       - name: Set Permissions
         run: |
           sudo chown -R www-data:www-data /var/www/html/toofaan/
+          sudo chmod -R 755 /var/www/html/toofaan/
 
-      # 4. (Optional) Clear Moodle cache
+      # 4. Purge Moodle cache (safe check)
       - name: Purge Cache
         run: |
           if [ -f "/var/www/html/toofaan/admin/cli/purge_caches.php" ]; then
