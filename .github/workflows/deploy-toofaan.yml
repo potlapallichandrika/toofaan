@@ -1,4 +1,4 @@
-name: Deploy Toofaan (Moodle)
+name: Deploy PHP Site (Toofaan)
 
 on:
   push:
@@ -6,32 +6,26 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted]
 
     steps:
       # 1. Checkout code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. Deploy to server
+      # 2. Deploy changed files only (SAFE)
       - name: Deploy to Server
         run: |
-          rsync -av --delete \
+          rsync -av \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='node_modules' \
+            --exclude='.env' \
             --exclude='config.php' \
-            --exclude='cache/' \
-            --exclude='localcache/' \
+            --exclude='uploads/' \
             ./ /var/www/html/toofaan/
 
-      # 3. Fix permissions (VERY IMPORTANT)
+      # 3. Set permissions (optional)
       - name: Set Permissions
         run: |
-          sudo chown -R www-data:www-data /var/www/html/toofaan
-          sudo chmod -R 755 /var/www/html/toofaan
-
-      # 4. Purge Moodle cache
-      - name: Purge Cache
-        run: |
-          sudo -u www-data php /var/www/html/toofaan/admin/cli/purge_caches.php
+          chown -R $USER:$USER /var/www/html/toofaan/
