@@ -439,7 +439,7 @@ echo $OUTPUT->footer();
         width:450px;
     }
     .login-form-forgotpassword{
- display:none;
+ display:block;
     }
    #page-wrapper #page {
  
