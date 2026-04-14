@@ -634,7 +634,7 @@ echo '<span style="display:none" id="watchCount">'.$watchCount.'</span>';
 // hp crossword   block start by chandrika
 elseif ($typeid == $activityTypeIds['h5pactivity']) {
 echo "H5P BLOCK ENTERED";
-exit;
+
     // ==================== H5P ACTIVITY ====================
     $cm = get_coursemodule_from_id('h5pactivity', $actid, 0, false, MUST_EXIST);
     $h5p = $DB->get_record('h5pactivity', ['id' => $cm->instance], '*', MUST_EXIST);
