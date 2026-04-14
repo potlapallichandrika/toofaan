@@ -370,9 +370,10 @@ echo '<div class="current-activity row">
                             else if($activities[$i]['modtypeid']==$activityTypeIds['url']) {
                                 $activityType='URL';
                         }
-                        else if($activities[$i]['modtypeid']==$activityTypeIds['url']) {
-                            $activityType='URL';
-                    }
+                        //hp5 crossword updated by chandrika
+                        else if($activities[$i]['modtypeid'] == $activityTypeIds['h5pactivity']) {
+        $activityType = 'H5P';           // <<< NEW LINE
+    }
                          else{
                             //  $activityType="--";
                             continue;
@@ -443,13 +444,33 @@ echo '<div class="current-activity row">
                              if($activities[$i]['modtypeid']==$activityTypeIds['assign']) {
                             echo ' <td><a href="'.$CFG->wwwroot.'/local/teacher/assignments/index.php?name='.$activities[$i]['modname'].'&instanceid='.$activities[$i]['modinstanceid'].'&cid='.$cid.'&secname=All&actid='.$activities[$i]['modid'].'" class="fa fa-users fa-2x" style="color:black" target="_blank" aria-hidden="true"></a></td>';
                     }
-                    elseif($activities[$i]['modtypeid']==$activityTypeIds['quiz'] || ($activities[$i]['modtypeid']==$activityTypeIds['vpl'])) {
-                            echo ' <td><i data-mid="' . $activities[$i]['modid'] . '" class="fa fa-users fa-2x students"  aria-hidden="true"></i></td>';
-                    }
-                    else{
-                        echo ' <td><i data-mid="' . $activities[$i]['modid'] . '" class="fa fa-users fa-2x  no-submission" aria-hidden="true"></i></td>';
+                    // elseif($activities[$i]['modtypeid']==$activityTypeIds['quiz'] || ($activities[$i]['modtypeid']==$activityTypeIds['vpl'])) {
+                    //         echo ' <td><i data-mid="' . $activities[$i]['modid'] . '" class="fa fa-users fa-2x students"  aria-hidden="true"></i></td>';
+                    // }
+                    // else{
+                    //     echo ' <td><i data-mid="' . $activities[$i]['modid'] . '" class="fa fa-users fa-2x  no-submission" aria-hidden="true"></i></td>';
 
-                    }
+                    // }
+// h5p crossword updated by chandrika
+                            elseif(in_array($activities[$i]['modtypeid'], [
+    $activityTypeIds['quiz'], 
+    $activityTypeIds['vpl'], 
+    $activityTypeIds['h5pactivity'],
+    //activityTypeIds['customactivity'],
+
+    //$activityTypeIds['customassessment']
+])) {
+    echo '<td>
+        <i 
+            data-mid="'.$activities[$i]['modid'].'" 
+            data-typeid="'.$activities[$i]['modtypeid'].'" 
+            class="fa fa-users fa-2x students" 
+            style="cursor:pointer; color:#007bff;" 
+            title="Click to view submissions"
+            aria-hidden="true">
+        </i>
+    </td>';
+}
                            echo '  </tr>';
                             ?>
                          </tbody>
@@ -543,6 +564,10 @@ echo '<div class="current-activity row">
         else if($activities[$i]['modtypeid']==$activityTypeIds['url']){
             $activityType='URL';
         }
+        //h5p crossword updated by chandrika
+        else if($activities[$i]['modtypeid'] == $activityTypeIds['h5pactivity']) {
+        $activityType = 'H5P';           // <<< NEW LINE
+    }
          else{
             //  $activityType="--";
             continue;

@@ -582,3 +582,113 @@ iframe.h5peditor-semi-fullscreen {
 .h5p-content.using-mouse *:not(textarea):focus {
   outline: none !important;
 }
+
+/* custom-crossword.css  */
+.h5p-crossword-cell.h5p-crossword-cell-empty,
+.h5p-crossword-cell-empty { background: #dae4f0 !important; border-color: #9fb0c8 !important; }
+.h5p-crossword-cell { background: #fff !important; border: 1px solid #9aa9b6 !important; }
+.h5p-crossword-cell .h5p-letter, .h5p-crossword-letter { font-weight: 600 !important; text-transform: uppercase !important; }
+.h5p-crossword-table-wrapper { padding: 8px !important; border-radius: 6px !important; }
+.h5p-crossword-clues li { margin-bottom: 6px !important; }
+
+/* ================================================
+   CUSTOMIZE THE "QUESTIONS / FILL-IN-THE-BLANKS" UI
+   H5P Crossword – Submit mode (no Check button)
+   ================================================ */
+
+/* 1. Make the whole clues area look cleaner & modern */
+.h5p-crossword-input-container {
+    background: #f8f9fa !important;
+    padding: 20px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08) !important;
+    margin-top: 15px !important;
+}
+
+/* 2. Bigger, bolder clue numbers */
+.h5p-crossword-input-fields-group-clue-id {
+    font-size: 20px !important;
+    font-weight: bold !important;
+    color: #d32f2f !important;
+    min-width: 36px !important;
+}
+
+/* 3. Better clue text style */
+.h5p-crossword-input-fields-group-clue span {
+    font-size: 17px !important;
+    color: #212529 !important;
+    font-weight: 500 !important;
+}
+
+/* 4. Answer length hint (5) – make it subtle */
+.h5p-crossword-input-fields-group-answer-length {
+    color: #666 !important;
+    font-size: 14px !important;
+    font-style: italic !important;
+}
+
+/* 5. Style the input boxes beautifully */
+.h5p-crossword-input-fields-group-input {
+    height: 48px !important;
+    font-size: 18px !important;
+    text-align: center !important;
+    border: 2px solid #ced4da !important;
+    border-radius: 8px !important;
+    padding: 0 12px !important;
+    transition: all 0.2s !important;
+}
+.h5p-crossword-input-fields-group-input:focus {
+    border-color: #1976d2 !important;
+    box-shadow: 0 0 0 4px rgba(25,118,210,0.15) !important;
+    outline: none !important;
+}
+
+/* 6. Group layout – more space between clues */
+.h5p-crossword-input-fields-group {
+    margin-bottom: 18px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px dashed #dee2e6 !important;
+}
+
+/* 7. Across / Down headers – make them stand out */
+.h5p-crossword-input-fields-group-title {
+    background: #343a40 !important;
+    color: white !important;
+    padding: 10px 16px !important;
+    border-radius: 8px !important;
+    font-size: 18px !important;
+    font-weight: bold !important;
+    margin: 20px 0 12px 0 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+
+.field-name-theme,
+fieldset.field-name-theme,
+#h5p-crossword-editor .field-name-theme { 
+    display: none !important; 
+}
+
+.field-name-behaviour,
+fieldset.field-name-behaviour,
+#h5p-crossword-editor .field-name-behaviour { 
+    display: none !important; 
+}
+
+.field-name-l10n,
+fieldset.field-name-l10n { 
+    display: none !important; 
+}
+
+
+.h5p-crossword .h5p-crossword-grid-wrapper {
+    max-width: 650px !important;
+    margin: 0 auto !important;
+}
+
+.h5p-crossword-editor .common {
+    display: none !important;
+}
+
+

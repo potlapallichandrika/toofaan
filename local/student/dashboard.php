@@ -56,7 +56,7 @@ if (user_has_role_assignment($USER->id, 5)) {
             if (is_object($value1)) {
                 if (
                     $value1->visible == true &&
-                    (($value1->mod == 'vpl') || ($value1->mod == 'quiz') || ($value1->mod == 'teleconnect') || ($value1->mod == 'url') ) &&
+                    (($value1->mod == 'vpl') || ($value1->mod == 'quiz') || ($value1->mod == 'teleconnect') || ($value1->mod == 'url')  || ($value1->mod == 'h5pactivity') ) &&
                     is_activity_started_and_has_status($value1->cm, $now, 1)
                 ) {
                     $sortedActivities[] = array(
@@ -101,6 +101,10 @@ if (user_has_role_assignment($USER->id, 5)) {
         else if ($im == 'url') {
             echo "URL";
         }
+        // h5p crossword updated by chandrika
+        else if ($im == 'h5pactivity') {
+    echo "H5P";
+}
         global $DB;
         $startdate = userdate($DB->get_field('activity_status_tsl', 'activity_start_time', array('activityid' => $activitycm)));
 
@@ -122,6 +126,12 @@ if (user_has_role_assignment($USER->id, 5)) {
             $tcid = $DB->get_field('course_modules', 'instance', array('id' => $activitycm));
             $descact = $DB->get_field_sql("SELECT `intro` FROM `mdl_teleconnect` WHERE `id` = '$tcid'");
         }
+//h5p crossword updated by chandrika
+        else if ($im == 'h5pactivity') {
+    $id = $DB->get_field('course_modules', 'instance', ['id' => $activitycm]);
+    $descact = $DB->get_field('h5pactivity', 'intro', ['id' => $id]);
+}
+
         else if ($im == 'url') {
             $tcid = $DB->get_field('course_modules', 'instance', array('id' => $activitycm));
             $descact = $DB->get_field_sql("SELECT `intro` FROM `mdl_url` WHERE `id` = '$tcid'");
@@ -142,7 +152,12 @@ if (user_has_role_assignment($USER->id, 5)) {
             $teleconnect_flag = 1;
             $teleactid = $activitycm;
             $reflink = $teleconnecturl;
-        } 
+        }
+        //h5p crossword updated by chandrika
+               else if ($im == 'h5pactivity') {
+    $reflink = $CFG->wwwroot . "/mod/h5pactivity/view.php?id=" . $activitycm;
+}
+        
         elseif(strcasecmp($im, "url") == 0) {
             $tci = $DB->get_field('course_modules', 'instance', array('id' => $activitycm));
             $desc = $DB->get_field_sql("SELECT `externalurl` FROM `mdl_url` WHERE `id` = '$tci'");
