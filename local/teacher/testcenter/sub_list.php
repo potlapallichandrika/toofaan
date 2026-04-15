@@ -636,7 +636,7 @@ echo '<span style="display:none" id="watchCount">'.$watchCount.'</span>';
 // h5p code by chandrika
 elseif ($typeid == $activityTypeIds['h5pactivity']) {
 
-    echo "<div style='background:yellow;padding:5px;'>H5P REPORT BLOCK EXECUTED</div>";
+    //echo "<div style='background:yellow;padding:5px;'>H5P REPORT BLOCK EXECUTED</div>";
 
     // ==================== H5P ACTIVITY ====================
     $cm     = get_coursemodule_from_id('h5pactivity', $actid, 0, false, MUST_EXIST);
@@ -696,12 +696,11 @@ elseif ($typeid == $activityTypeIds['h5pactivity']) {
 
         // ================= H5P Attempts =================
         $attempts = $DB->get_records_sql("
-            SELECT a.id, a.timemodified, a.ipaddress, ar.rawscore, ar.maxscore
-            FROM {h5pactivity_attempts} a
-            JOIN {h5pactivity_attempts_results} ar ON ar.attemptid = a.id
-            WHERE a.h5pactivityid = ? AND a.userid = ?
-            ORDER BY a.timemodified DESC
-        ", [$h5p->id, $student->id]);
+    SELECT a.id, a.timemodified, a.ipaddress, a.rawscore, a.maxscore
+    FROM {h5pactivity_attempts} a
+    WHERE a.h5pactivityid = ? AND a.userid = ?
+    ORDER BY a.timemodified DESC
+", [$h5p->id, $student->id]);
 
         // Default values
         $statusImg  = 'flag-red-icon.png';
