@@ -162,13 +162,11 @@ $secname = optional_param('secname', 'All',PARAM_TEXT);
 
 $acivitystatus=0;
 $acivitystopdate=0;
-// var_dump($typeid);
-// var_dump($activityTypeIds);
+var_dump($typeid);
+var_dump($activityTypeIds);
 // exit;
 
-echo 'actid = ' . $actid . '<br>';
-echo 'typeid = ' . $typeid . '<br>';
-echo 'h5pactivity type id = ' . $activityTypeIds['h5pactivity'] . '<br>';
+
 
 		if($DB->get_field('activity_status_tsl','status',  array('activityid' => $actid))){
                         $result=$DB->get_field('activity_status_tsl','status',  array('activityid' => $actid));
