@@ -26,6 +26,7 @@
 #include <execinfo.h>
 #include <regex.h>
 #include <string>
+#include <sys/time.h>
 
 using namespace std;
 
@@ -267,6 +268,7 @@ class TestCase {
 	int expectedExitCode; // Default value std::numeric_limits<int>::min()
 	int exitCode; // Default value std::numeric_limits<int>::min()
 	string programOutputBefore, programOutputAfter, programInput;
+	long long executionTimeNs;
 
 	void cutOutputTooLarge(string &output);
 	void readWrite(int fdread, int fdwrite);
@@ -291,18 +293,23 @@ public:
 	void splitArgs(string);
 	void runTest(time_t timeout);
 	bool match(string data);
+	long long getExecutionTimeNs() const;
 };
 
 /**
  * Class Evaluation Declaration
  */
 class Evaluation {
-	int maxtime;
+	int maxtime,executiontime,ttime,tletime,tleflag,showcom;
 	float grademin, grademax;
 	string variation;
 	bool noGrade;
 	float grade;
 	int nerrors, nruns;
+	long long totalExecutionTimeNs;
+	long long tleLimitNs;
+	//long long tletime;
+	bool tleFlag;
 	vector<TestCase> testCases;
 	char comments[MAXCOMMENTS + 1][MAXCOMMENTSLENGTH + 1];
 	char titles[MAXCOMMENTS + 1][MAXCOMMENTSTITLELENGTH + 1];
@@ -315,7 +322,11 @@ class Evaluation {
 public:
 	static Evaluation* getSinglenton();
 	static void deleteSinglenton();
-	void addTestCase(Case &);
+	void addTestCase(const string &input,
+                 const vector<string> &output,
+                 const string &caseDescription,
+                 float gradeReduction);
+	//void addTestCase(Case &caso);
 	void removeLastNL(string &s);
 	bool cutToEndTag(string &value, const string &endTag);
 	void loadTestCases(string fname);
@@ -1123,6 +1134,7 @@ TestCase::TestCase(const TestCase &o) {
 	programOutputBefore=o.programOutputBefore;
 	programOutputAfter=o.programOutputAfter;
 	programInput=o.programInput;
+	executionTimeNs=o.executionTimeNs;
 	for(size_t i = 0; i < o.output.size(); i++){
 		output.push_back(o.output[i]->clone());
 	}
@@ -1150,6 +1162,7 @@ TestCase& TestCase::operator=(const TestCase &o) {
 	programOutputBefore=o.programOutputBefore;
 	programOutputAfter=o.programOutputAfter;
 	programInput=o.programInput;
+	executionTimeNs = o.executionTimeNs;
 	for(size_t i=0; i<output.size(); i++)
 		delete output[i];
 	output.clear();
@@ -1187,6 +1200,7 @@ TestCase::TestCase(int id, const string &input, const vector<string> &output,
 	sizeReaded = 0;
 	gradeReductionApplied =0;
 	strcpy(executionErrorReason, "");
+	executionTimeNs = 0;
 	setDefaultCommand();
 }
 
@@ -1234,17 +1248,62 @@ string TestCase::getCommentTitle(bool withGradeReduction=false) {
 	return ret;
 }
 
+// string TestCase::getComment() {
+// 	if (isCorrectResult()) {
+// 		return "";
+// 	}
+// 	char buf[100];
+// 	string ret;
+// 	if(output.size()==0){
+// 		ret += "Configuration error in the test case: the output is not defined";
+// 	}
+// 	if (programTimeout) {
+// 		ret += "Program timeout\n";
+// 	}
+// 	if (outputTooLarge) {
+// 		sprintf(buf, "Program output too large (%dKb)\n", sizeReaded / 1024);
+// 		ret += buf;
+// 	}
+// 	if (executionError) {
+// 		ret += executionErrorReason + string("\n");
+// 	}
+// 	if (isExitCodeTested() && ! correctExitCode) {
+// 		char buf[250];
+// 		sprintf(buf, "Incorrect exit code. Expected %d, found %d\n", expectedExitCode, exitCode);
+// 		ret += buf;
+// 	}
+// 	if (! correctOutput) {
+// 		if (failMessage.size()) {
+// 			ret += failMessage + "\n";
+// 		} else { 
+// 			//****** Commented to hide test cases from the users in vpl start *********
+// 			// ret += "Incorrect program output\n";
+// 			// ret += " --- Input ---\n";
+// 			// ret += Tools::caseFormat(input);
+// 			// ret += "\n --- Program output ---\n";
+// 			// ret += Tools::caseFormat(programOutputBefore + programOutputAfter);
+// 			if(output.size()>0){
+// 				// ret += "\n --- Expected output ("+output[0]->type()+")---\n";
+// 				// ret += Tools::caseFormat(output[0]->studentOutputExpected());
+// 				//****** Commented to hide test cases from the users in vpl end *********
+// 			}
+// 		}
+// 	}
+// 	return ret;
+// }
+
 string TestCase::getComment() {
-	if (isCorrectResult()) {
-		return "";
+	if(output.size()==0){
+		return "Configuration error in the test case: the output is not defined";
+	}
+	if (correctOutput && !(programTimeout || outputTooLarge
+			|| executionError)) {
+		return programOutputAfter;
 	}
 	char buf[100];
 	string ret;
-	if(output.size()==0){
-		ret += "Configuration error in the test case: the output is not defined";
-	}
 	if (programTimeout) {
-		ret += "Program timeout\n";
+		ret += "Time Limit Exceeded\n";
 	}
 	if (outputTooLarge) {
 		sprintf(buf, "Program output too large (%dKb)\n", sizeReaded / 1024);
@@ -1253,27 +1312,18 @@ string TestCase::getComment() {
 	if (executionError) {
 		ret += executionErrorReason + string("\n");
 	}
-	if (isExitCodeTested() && ! correctExitCode) {
-		char buf[250];
-		sprintf(buf, "Incorrect exit code. Expected %d, found %d\n", expectedExitCode, exitCode);
-		ret += buf;
-	}
-	if (! correctOutput) {
-		if (failMessage.size()) {
-			ret += failMessage + "\n";
-		} else { 
-			//****** Commented to hide test cases from the users in vpl start *********
-			// ret += "Incorrect program output\n";
-			// ret += " --- Input ---\n";
-			// ret += Tools::caseFormat(input);
-			// ret += "\n --- Program output ---\n";
-			// ret += Tools::caseFormat(programOutputBefore + programOutputAfter);
-			if(output.size()>0){
-				// ret += "\n --- Expected output ("+output[0]->type()+")---\n";
-				// ret += Tools::caseFormat(output[0]->studentOutputExpected());
-				//****** Commented to hide test cases from the users in vpl end *********
-			}
+	if (!correctOutput) {
+		//ret += "Incorrect program result\n";
+		ret += " --- Input --- \n";
+		ret += Tools::caseFormat(input);
+		ret += " --- Program output ---\n";
+		ret += Tools::caseFormat(programOutputAfter.substr(programOutputAfter.find("$") + 1));
+		if(output.size()>0){
+			ret += "--- Expected output ---\n";
+			ret += Tools::caseFormat(output[0]->studentOutputExpected());
 		}
+		
+		return ret+"`"+programOutputAfter;
 	}
 	return ret;
 }
@@ -1316,6 +1366,10 @@ void TestCase::splitArgs(string programArgs) {
 
 void TestCase::runTest(time_t timeout) {// Timeout in seconds
 	time_t start = time(NULL);
+	struct timeval hrstart;
+	struct timeval hrend;
+	gettimeofday(&hrstart, NULL);
+	executionTimeNs = 0;
 	int pp1[2]; // Send data
 	int pp2[2]; // Receive data
 	if (pipe(pp1) == -1 || pipe(pp2) == -1) {
@@ -1411,7 +1465,18 @@ void TestCase::runTest(time_t timeout) {// Timeout in seconds
 	readWrite(fdread, fdwrite);
 	correctExitCode = isExitCodeTested() && expectedExitCode == exitCode;
 	correctOutput = match(programOutputAfter)
-			     || match(programOutputBefore + programOutputAfter);
+		     || match(programOutputBefore + programOutputAfter);
+	gettimeofday(&hrend, NULL);
+	long long seconds = (long long)(hrend.tv_sec - hrstart.tv_sec);
+	long long useconds = (long long)(hrend.tv_usec - hrstart.tv_usec);
+	if (useconds < 0) {
+		seconds--;
+		useconds += 1000000LL;
+	}
+	executionTimeNs = seconds * 1000000000LL + useconds * 1000LL;
+	if (executionTimeNs < 0) {
+		executionTimeNs = 0;
+	}
 }
 
 bool TestCase::match(string data) {
@@ -1419,6 +1484,10 @@ bool TestCase::match(string data) {
 		if (output[i]->match(data))
 			return true;
 	return false;
+}
+
+long long TestCase::getExecutionTimeNs() const {
+	return executionTimeNs;
 }
 
 /**
@@ -1431,6 +1500,8 @@ Evaluation::Evaluation() {
 	nerrors = 0;
 	nruns = 0;
 	noGrade = true;
+	tleflag=0;
+	ttime=0;
 }
 
 Evaluation* Evaluation::getSinglenton() {
@@ -1447,13 +1518,32 @@ void Evaluation::deleteSinglenton(){
 	}
 }
 
-void Evaluation::addTestCase(Case &caso) {
-	if ( caso.getVariation().size() && caso.getVariation() != variation ) {
-		return;
-	}
-	testCases.push_back(TestCase(testCases.size() + 1, caso.getInput(), caso.getOutput(),
-			caso.getCaseDescription(), caso.getGradeReduction(), caso.getFailMessage(),
-			caso.getProgramToRun(), caso.getProgramArgs(), caso.getExpectedExitCode() ));
+// void Evaluation::addTestCase(Case &caso) {
+// 	if ( caso.getVariation().size() && caso.getVariation() != variation ) {
+// 		return;
+// 	}
+// 	testCases.push_back(TestCase(testCases.size() + 1, caso.getInput(), caso.getOutput(),
+// 			caso.getCaseDescription(), caso.getGradeReduction(), caso.getFailMessage(),
+// 			caso.getProgramToRun(), caso.getProgramArgs(), caso.getExpectedExitCode() ));
+// }
+void Evaluation::addTestCase(const string &input,
+                             const vector<string> &output,
+                             const string &caseDescription,
+                             float gradeReduction)
+{
+    testCases.push_back(
+        TestCase(
+            testCases.size() + 1,
+            input,
+            output,
+            caseDescription,
+            gradeReduction,
+            "", // failMessage
+            "", // programToRun
+            "", // programArgs
+            std::numeric_limits<int>::min() // expectedExitCode
+        )
+    );
 }
 
 void Evaluation::removeLastNL(string &s) {
@@ -1588,7 +1678,13 @@ void Evaluation::loadTestCases(string fname) {
 				outputEnd = Tools::trim(value);
 			} else if (tag == CASE_TAG) {
 				if (inCase) {
-					addTestCase(caso);
+					addTestCase(
+            caso.getInput(),
+            caso.getOutput(),
+            caso.getCaseDescription(),
+            caso.getGradeReduction()
+        );
+					  
 					caso.reset();
 				}
 				inCase = true;
@@ -1608,17 +1704,52 @@ void Evaluation::loadTestCases(string fname) {
 		caso.addOutput(output);
 	}
 	if (inCase) { // Last case => save current.
-		addTestCase(caso);
+		addTestCase(
+    caso.getInput(),
+    caso.getOutput(),
+    caso.getCaseDescription(),
+    caso.getGradeReduction()
+);
 	}
 }
 
 bool Evaluation::loadParams() {
-	grademin= Tools::getenv("VPL_GRADEMIN", 0.0);
-	grademax = Tools::getenv("VPL_GRADEMAX", 10);
-	maxtime = (int) Tools::getenv("VPL_MAXTIME", 20);
-	variation = Tools::toLower(Tools::trim(Tools::getenv("VPL_VARIATION","")));
-	noGrade = grademin >= grademax;
-	return true;
+
+    std::cerr << "DEBUG: Loading VPL parameters..." << std::endl;
+
+    grademin = Tools::getenv("VPL_GRADEMIN", 0.0);
+    std::cerr << "DEBUG: VPL_GRADEMIN = " << grademin << std::endl;
+
+    grademax = Tools::getenv("VPL_GRADEMAX", 10);
+    std::cerr << "DEBUG: VPL_GRADEMAX = " << grademax << std::endl;
+
+    maxtime = (int) Tools::getenv("VPL_MAXTIME", 20);
+    std::cerr << "DEBUG: VPL_MAXTIME = " << maxtime << std::endl;
+
+    variation = Tools::toLower(
+                    Tools::trim(
+                        Tools::getenv("VPL_VARIATION","")
+                    )
+                );
+    std::cerr << "DEBUG: VPL_VARIATION = " << variation << std::endl;
+
+     // Read TLE in milliseconds from Moodle
+double rawTle = Tools::getenv("VPL_TLELIMIT", 0.0);
+tletime = (long long)rawTle;
+
+std::cerr << "DEBUG: VPL_TLELIMIT (raw) = " << rawTle << std::endl;
+std::cerr << "DEBUG: TLE Limit Used (ns) = " << tletime << std::endl;
+
+
+    totalExecutionTimeNs = 0;
+    tleFlag = false;
+
+    noGrade = grademin >= grademax;
+    std::cerr << "DEBUG: noGrade flag = " << noGrade << std::endl;
+
+    std::cerr << "DEBUG: loadParams() finished." << std::endl;
+
+    return true;
 }
 
 void Evaluation::addFatalError(const char *m) {
@@ -1633,94 +1764,315 @@ void Evaluation::addFatalError(const char *m) {
 	grade = grademin;
 }
 
+
+
 void Evaluation::runTests() {
+
+	printf("\n===== DEBUG: ENTER runTests() =====\n");
+
 	if (testCases.size() == 0) {
+		printf("DEBUG: No test cases found.\n");
 		return;
 	}
+
 	if (maxtime < 0) {
+		printf("DEBUG: Global timeout before starting tests.\n");
 		addFatalError("Global timeout");
 		return;
 	}
+
 	nerrors = 0;
 	nruns = 0;
 	grade = grademax;
+
+	printf("DEBUG: grademax = %.2f\n", grademax);
+	printf("DEBUG: grademin = %.2f\n", grademin);
+	printf("DEBUG: Total testCases = %lu\n", (unsigned long)testCases.size());
+	printf("DEBUG: maxtime = %d\n", maxtime);
+	printf("DEBUG: tletime = %d\n", tletime);
+
 	float defaultGradeReduction = (grademax - grademin) / testCases.size();
 	int timeout = maxtime / testCases.size();
-	for (size_t i = 0; i < testCases.size(); i++) {
-		printf("Testing %lu/%lu : %s\n", (unsigned long) i+1, (unsigned long)testCases.size(), testCases[i].getCaseDescription().c_str());
+
+	printf("DEBUG: defaultGradeReduction = %.2f\n", defaultGradeReduction);
+	printf("DEBUG: timeout per test = %d\n", timeout);
+
+	for (int i = 0; i < testCases.size(); i++) {
+
+		printf("\n----- DEBUG: START TEST %d -----\n", i+1);
+
+		printf("Testing %d/%lu : %s\n",
+		       i+1,
+		       (unsigned long)testCases.size(),
+		       testCases[i].getCaseDescription().c_str());
+
+		printf("DEBUG: Grade before test = %.2f\n", grade);
+		printf("DEBUG: Global elapsed time = %d\n", Timer::elapsedTime());
+
 		if (timeout <= 1 || Timer::elapsedTime() >= maxtime) {
+			printf("DEBUG: Global timeout triggered inside loop.\n");
 			grade = grademin;
 			addFatalError("Global timeout");
 			return;
 		}
-		if (maxtime - Timer::elapsedTime() < timeout) { // Try to run last case
+
+		if (maxtime - Timer::elapsedTime() < timeout) {
 			timeout = maxtime - Timer::elapsedTime();
+			printf("DEBUG: Adjusted timeout = %d\n", timeout);
 		}
+
 		testCases[i].runTest(timeout);
 		nruns++;
+
+		printf("DEBUG: Test executed.\n");
+		printf("DEBUG: isCorrectResult = %d\n",
+		       testCases[i].isCorrectResult());
+
 		if (!testCases[i].isCorrectResult()) {
+
+			printf("DEBUG: Wrong Answer detected.\n");
+
 			if (Stop::isTERMRequested())
 				break;
+
 			float gr = testCases[i].getGradeReduction();
-			if (gr == std::numeric_limits<float>::min())
+			printf("DEBUG: Custom grade reduction = %.5f\n", gr);
+
+			if (gr == std::numeric_limits<float>::min()) {
+				printf("DEBUG: Using default grade reduction.\n");
 				testCases[i].setGradeReductionApplied(defaultGradeReduction);
-			else
-				testCases[i].setGradeReductionApplied(gr);
-			grade -= testCases[i].getGradeReductionApplied();
-			if (grade < grademin) {
-				grade = grademin;
 			}
+			else {
+				testCases[i].setGradeReductionApplied(gr);
+			}
+
+			printf("DEBUG: Reduction applied = %.2f\n",
+			       testCases[i].getGradeReductionApplied());
+
+			grade -= testCases[i].getGradeReductionApplied();
+
+			if(grade<grademin)
+				grade=grademin;
+
+			printf("DEBUG: Grade after WA reduction = %.2f\n", grade);
+
 			nerrors++;
+
 			if(ncomments<MAXCOMMENTS){
-				strncpy(titles[ncomments], testCases[i].getCommentTitle().c_str(),
-						MAXCOMMENTSTITLELENGTH);
-				strncpy(titlesGR[ncomments], testCases[i].getCommentTitle(true).c_str(),
-						MAXCOMMENTSTITLELENGTH);
-				strncpy(comments[ncomments], testCases[i].getComment().c_str(),
-						MAXCOMMENTSLENGTH);
+				printf("DEBUG: Storing comment for WA.\n");
+
+				strncpy(titles[ncomments],
+					testCases[i].getCommentTitle().c_str(),
+					MAXCOMMENTSTITLELENGTH);
+
+				strncpy(titlesGR[ncomments],
+					testCases[i].getCommentTitle(true).c_str(),
+					MAXCOMMENTSTITLELENGTH);
+
+				strncpy(comments[ncomments],
+					testCases[i].getComment().c_str(),
+					MAXCOMMENTSLENGTH);
+
 				ncomments++;
 			}
 		}
+
+	/* TLE Grade Reduction Logic Start */
+
+		std::string commentStr = testCases[i].getComment();
+		printf("DEBUG: Raw comment string = %s\n", commentStr.c_str());
+
+		char *etim;
+		int tstim = 0;
+
+		etim = strrchr(const_cast<char*>(commentStr.c_str()), '$');
+
+		if(etim){
+
+			printf("DEBUG: '$' found in comment.\n");
+
+			etim++;
+			tstim=atoi(etim);
+
+			printf("DEBUG: Extracted execution time (ns) = %d\n", tstim);
+
+			ttime+= tstim;
+
+			if(tstim>1000000000)
+				printf("Time Taken = %.3f Seconds\n",tstim/1000000000.0);
+			else if(tstim>1000000)
+				printf("Time Taken = %.3f Milli Sec\n",tstim/1000000.0);
+			else if(tstim>1000)
+				printf("Time Taken = %.3f Micro Sec\n",tstim/1000.0);
+			else
+				printf("Time Taken = %d Nano Sec\n",tstim );
+
+			if(tletime>0){
+
+				printf("DEBUG: tletime = %d\n", tletime);
+				printf("DEBUG: isCorrectResult = %d\n",
+				       testCases[i].isCorrectResult());
+				printf("DEBUG: Grade before TLE check = %.2f\n", grade);
+
+				if(tstim>tletime && testCases[i].isCorrectResult()){
+
+					printf("DEBUG: TLE CONDITION TRUE.\n");
+
+					testCases[i].setGradeReductionApplied(defaultGradeReduction);
+					grade -= testCases[i].getGradeReductionApplied();
+
+					printf("DEBUG: TLE reduction applied = %.2f\n",
+					       defaultGradeReduction);
+					printf("DEBUG: Grade after TLE reduction = %.2f\n",
+					       grade);
+
+					strncpy(titles[ncomments],
+						testCases[i].getCommentTitle().c_str(),
+						MAXCOMMENTSTITLELENGTH);
+
+					strncpy(titlesGR[ncomments],
+						testCases[i].getCommentTitle(true).c_str(),
+						MAXCOMMENTSTITLELENGTH);
+
+					strncpy(comments[ncomments],
+						testCases[i].getComment().c_str(),
+						MAXCOMMENTSLENGTH);
+
+					ncomments++;
+
+					printf("Time Limit Exceeded\n");
+				}
+				else{
+					printf("DEBUG: Within time limit.\n");
+				}
+
+				printf("DEBUG: Grade after TLE check = %.2f\n", grade);
+			}
+		}
+		else{
+			printf("DEBUG: No '$' time marker found in comment.\n");
+		}
+
+		printf("----- DEBUG: END TEST %d | Current Grade = %.2f -----\n",
+		       i+1, grade);
 	}
+
+	printf("\n===== DEBUG: EXIT runTests() =====\n");
+	printf("DEBUG: Total Runs = %d\n", nruns);
+	printf("DEBUG: Total Errors = %d\n", nerrors);
+	printf("DEBUG: Final Grade = %.2f\n", grade);
 }
 
+
 void Evaluation::outputEvaluation() {
-	const char* stest[] = {" test", "tests"};
+	const char* stest[]={" test","tests"};
 	if (testCases.size() > 0) {
 		if (ncomments > 1) {
-			printf("\n<|--\n");
+		/*	printf("\n<|--\n");
 			printf("-Failed tests\n");
 			for (int i = 0; i < ncomments; i++) {
 				printf("%s", titles[i]);
 			}
-			printf("--|>\n");
+			printf("--|>\n");*/
 		}
-		if ( ncomments > 0 ) {
+		if (ncomments > 0) {
 			printf("\n<|--\n");
+							
+							
 			for (int i = 0; i < ncomments; i++) {
-				printf("-%s", titlesGR[i]);
-				printf("%s\n", comments[i]);
+				printf("%s", titlesGR[i]);
+				char *et,*temp,*foundtext;int tst=0,len=0;
+						
+						temp=comments[i];
+						if(strrchr(temp, '`')!=NULL)
+						 len=(strrchr(temp, '`')-temp)+1;
+						
+    
+    // into buffer instead of printing on stdout
+
+
+				if(tletime){
+						et=comments[i];
+ 						if(len>0){
+							char buffer[len];		
+							strcpy(buffer, temp);
+							buffer[len-1]='\0';
+							strcpy(foundtext,buffer);
+						 }
+						et = strrchr(et, '$'); 
+						
+					if(et){
+						et++;
+						tst=atoi(et);
+					}
+				}
+				if(tst>tletime){
+					tleflag=1;
+					printf("Time Limit Exceeded (%d nano sec)\n\n",tletime); // Hide Program output for failed testcase
+					if(len>0)
+					printf("%s",foundtext);
+				}
+				else{
+					if(showcom==0)
+					printf("Test Case Failed\n\n");
+					else if(showcom==1 && len>0){
+					printf("\nIncorrect Output\n");
+					printf("%s",foundtext);
+					}
+				}
 			}
-			printf("--|>\n");
+			printf("--|>\n\n");
 		}
-		int passed = nruns - nerrors;
-		if ( nruns > 0 ) {
-			printf("\n<|--\n");
-			printf("-Summary of tests\n");
+		if (nruns > 0) {
+			int passed=nruns-nerrors;
+			struct timeval tp;
+			gettimeofday(&tp, NULL);
+			long int end = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+			printf("\n<|--");
+			
+			printf("-----Summary of tests------|>\n");
+
 			printf(">+------------------------------+\n");
 			printf(">| %2d %s run/%2d %s passed |\n",
 					nruns, nruns==1?stest[0]:stest[1],
-					passed, passed==1?stest[0]:stest[1]); // Taken from Dominique Thiebaut
+					passed, passed==1?stest[0]:stest[1]); //Taken from Dominique Thiebaut
 			printf(">+------------------------------+\n");
-			printf("\n--|>\n");
+			string result="";
+			
+			
+
 		}
-		if ( ! noGrade ) {
+
+        /* Ram Mohan Start Test Case Time Summery Start
+		char *etime;int tstime=0;
+			for (int i = 0; i < testCases.size(); i++) {
+				etime=comments[i];
+				etime = strrchr(etime, '$'); 
+				if(etime){
+				etime++;
+				tstime=atoi(etime);
+				ttime+= tstime;
+					if(tstime>1000000)
+						printf("Case %d Time Taken = %.3f Milli Sec\n",i+1,tstime/1000000.0);
+					else if(tstime>1000)
+						printf("Case %d Time Taken = %.3f Micro Sec\n",i+1,tstime/1000.0);
+					else
+						printf("Case %d Time Taken = %d Nano Sec\n",i+1,tstime );
+				
+			  }
+			}	
+			// Ram Mohan Start Test Case Time Summery  End
+			*/
+
+		if(!noGrade){
 			char buf[100];
 			sprintf(buf, "%5.2f", grade);
 			int len = strlen(buf);
 			if (len > 3 && strcmp(buf + (len - 3), ".00") == 0)
 				buf[len - 3] = 0;
-			printf("\nGrade :=>>%s\n", buf);
+			printf("\nGrade :=>>%s", buf); // added evaluation time text to get evaluation time
+			printf("\nExecution Time :=>>%d$%d", ttime,tleflag); // added evaluation time text to get evaluation time
+
 		}
 	} else {
 		printf("<|--\n");

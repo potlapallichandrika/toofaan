@@ -276,6 +276,14 @@ class mod_vpl_submission_CE extends mod_vpl_submission {
             $data->algorithm =  $vplinstance->algorithm;
         }
 
+           //tle code by chandrika
+
+if ($vplinstance->tlelimit) {
+
+            $data->tlelimit = ( int ) $vplinstance->tlelimit;
+
+        }
+
         
         if ($vplinstance->maxexetime) {
             $data->maxtime = (int) $vplinstance->maxexetime;
@@ -437,6 +445,8 @@ class mod_vpl_submission_CE extends mod_vpl_submission {
         }
         if ($data->type >= self::TEVALUATE) { // If evaluation then add information.
             $info .= vpl_bash_export('VPL_MAXTIME', $data->maxtime);
+            // tle code by chandrika
+             $info .= vpl_bash_export( 'VPL_TLELIMIT', $data->tlelimit?$data->tlelimit:0 );
             $info .= vpl_bash_export('VPL_MAXMEMORY', $data->maxmemory);
             $info .= vpl_bash_export('VPL_MAXFILESIZE', $data->maxfilesize);
             $info .= vpl_bash_export('VPL_MAXPROCESSES', $data->maxprocesses);
@@ -703,7 +713,7 @@ class mod_vpl_submission_CE extends mod_vpl_submission {
         return $response['update'] > 0;
     }
 
-    public function retrieveresult($processid) {
+    /*public function retrieveresult($processid) {
         $vplid = $this->vpl->get_instance()->id;
         $processinfo = vpl_running_processes::get_by_id($vplid, $this->instance->userid, $processid);
         if ($processinfo == false) { // No process found.
@@ -726,7 +736,147 @@ class mod_vpl_submission_CE extends mod_vpl_submission {
             }
         }
         return $this->get_CE_for_editor( $response );
+    }*/
+//tle code by chandrika
+    public function retrieveresult($processid) {
+    global $DB;
+
+    error_log("STEP 1: retrieveresult STARTED");
+
+    $vplid = $this->vpl->get_instance()->id;
+    error_log("STEP 2: VPL ID = " . $vplid);
+
+    $processinfo = vpl_running_processes::get_by_id(
+        $vplid,
+        $this->instance->userid,
+        $processid
+    );
+
+    if ($processinfo == false) {
+        error_log("ERROR: No process found");
+        throw new Exception(get_string('serverexecutionerror', VPL) . ' No process found');
     }
+
+    error_log("STEP 3: Process found successfully");
+
+    $response = $this->jailreaction('getresult', $processinfo);
+
+    if ($response === false) {
+        error_log("ERROR: Jail getresult returned FALSE");
+        throw new Exception(get_string('serverexecutionerror', VPL) . ' getresult no response');
+    }
+
+    error_log("STEP 4: Jail response received");
+
+    if ($response['interactive'] == 0 && $processinfo->type == 2) {
+
+        error_log("STEP 5: Non-interactive execution confirmed");
+
+        /******** grade reduction code start *********/
+        if (strlen($DB->get_field('vpl', 'intro', ['id' => $vplid])) > 25) {
+
+            error_log("STEP 6: Grade reduction condition satisfied");
+
+            $hintreduction = [1 => 0, 2 => 5, 3 => 10];
+
+            $activityId = $this->vpl->get_course_module()->id;
+            $userid     = $this->instance->userid;
+
+            $hintlevel = $DB->get_field(
+                'vpl_hints',
+                'chosehint',
+                ['userid' => $userid, 'activityid' => $activityId]
+            );
+
+            error_log("STEP 7: Hint level = " . $hintlevel);
+
+            if (!empty($hintreduction[$hintlevel])) {
+                $executedRes = $this->gradereduction(
+                    $response['execution'],
+                    $hintreduction[$hintlevel]
+                );
+                $response['execution'] = $executedRes;
+                error_log("STEP 8: Grade reduction applied");
+            }
+
+            $this->instance->hintlevel = $hintlevel;
+        }
+        /******** grade reduction code end *********/
+
+        $this->saveCE($response);
+        error_log("STEP 9: Compilation & Execution saved");
+
+        if ($response['executed'] > 0) {
+
+            error_log("STEP 10: Execution completed successfully");
+
+            if ($this->vpl->get_instance()->automaticgrading) {
+
+                error_log("STEP 11: Automatic grading enabled");
+
+                $data = new StdClass();
+
+                /******** Evaluation time extraction *********/
+
+                error_log("STEP 12: Raw execution output:");
+                error_log($response['execution']);
+
+//                 // Extract evaluation time
+//                 if (preg_match('/__EVALTIME__=([0-9.]+)/', $response['execution'], $matches)) {
+//                     $data->evaluationtime = floatval($matches[1]);
+//                     error_log("STEP 13: Evaluation Time Extracted = " . $data->evaluationtime);
+//                 } else {
+//                     error_log("WARNING: __EVALTIME__ NOT FOUND");
+//                     $data->evaluationtime = 0;
+//                 }
+               
+//                 $tlelimit = $this->vpl->get_instance()->tlelimit; // or VPL_TLELIMIT if stored
+
+// $data->istle = ($data->evaluationtime > $tlelimit) ? 1 : 0;
+
+// error_log("STEP 14: TLE Flag = " . $data->istle);
+
+/******** Extract exact nanoseconds from C++ output ********/
+
+$execution_ns = 0;
+
+if (preg_match('/Time Taken For Logic\(ns\)\$([0-9]+)/', $response['execution'], $matches)) {
+
+    $execution_ns = intval($matches[1]);
+    error_log("STEP 13: Execution Time (ns) Extracted = " . $execution_ns);
+
+} else {
+
+    error_log("WARNING: Nanosecond execution time NOT FOUND");
+}
+
+/******** TLE comparison in nanoseconds ********/
+
+$tlelimit = $this->vpl->get_instance()->tlelimit; // already in ns
+
+$data->evaluationtime = $execution_ns; // store ns instead of ms
+$data->istle = ($execution_ns > $tlelimit) ? 1 : 0;
+
+error_log("STEP 14: TLE Flag (ns compare) = " . $data->istle);
+
+                /******** End extraction *********/
+
+                $data->grade = $this->proposedGrade($response['execution']);
+                error_log("STEP 15: Proposed Grade = " . $data->grade);
+
+                $data->comments = $this->proposedComment($response['execution']);
+                error_log("STEP 16: Proposed Comments Generated");
+
+                $this->set_grade($data, true);
+                error_log("STEP 17: set_grade() executed successfully");
+            }
+        }
+    }
+
+    error_log("STEP 18: Returning CE to editor");
+
+    return $this->get_CE_for_editor($response);
+}
     public function isrunning() {
         try {
             $response = $this->jailreaction( 'running' );

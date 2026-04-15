@@ -402,10 +402,11 @@ class mod_vpl_submission {
      * @param boolean $automatic if automatic grading (default false)
      * @return boolean. true => OK
      */
-    public function set_grade($info, $automatic = false) {
-        global $USER;
+     public function set_grade($info, $automatic = false) {
+         global $USER;
         global $CFG;
         global $DB;
+
         ignore_user_abort( true );
         $scaleid = $this->vpl->get_grade();
         if ($scaleid == 0 && empty( $CFG->enableoutcomes )) { // No scale no outcomes.
@@ -503,10 +504,23 @@ class mod_vpl_submission {
                 }
             }
         }
-        if (! $DB->update_record( 'vpl_submissions', $this->instance )) {
-            throw new moodle_exception( 'error:recordnotupdated', 'mod_vpl', '', VPL_SUBMISSIONS );
-        }
+       
+/******** Save evaluation time + TLE flag *********/
+if (isset($info->evaluationtime)) {
+
+    $this->instance->evaluationtime = floatval($info->evaluationtime);
+    $this->instance->istle = isset($info->istle) ? intval($info->istle) : 0;
+
+    $DB->update_record('vpl_submissions', $this->instance);
+}
+/******** End evaluation time save *********/
+        
+error_log("DEBUG: Updated submission id {$this->instance->id} with evaluationtime={$this->instance->evaluationtime}, istle={$this->instance->istle}");
+    
+     //error_log("INFO OBJECT >>> " . print_r($qr, true));
         return true;
+
+
     }
 
     /**
@@ -1386,39 +1400,66 @@ class mod_vpl_submission {
         }
     }
     public function get_ce_for_editor($response = null) {
-        $ce = new stdClass();
-        $ce->compilation = '';
-        $ce->evaluation = '';
-        $ce->execution = '';
-        $ce->grade = '';
-        $ce->nevaluations = $this->instance->nevaluations;
-        $vplinstance = $this->vpl->get_instance();
-        $ce->freeevaluations = $vplinstance->freeevaluations;
-        $ce->reductionbyevaluation = $vplinstance->reductionbyevaluation;
 
-        if ($response == null) {
-            $response = $this->getce();
-        }
-        if ($response['compilation']) {
-            $ce->compilation = $response['compilation'];
-        }
-        if ($response['executed'] > 0) {
-            $rawexecution = $response['execution'];
-            $evaluation = $this->proposedcomment( $rawexecution );
-            $proposedgrade = $this->proposedgrade( $rawexecution );
-            $ce->evaluation = $evaluation;
-            if (strlen( $proposedgrade ) && $this->vpl->get_instance()->grade) {
-                $sgrade = $this->get_grade_core( $proposedgrade );
-                $ce->grade = get_string( 'proposedgrade', VPL, $sgrade );
-            }
-            // Show raw ejecution if no grade or comments.
-            $manager = $this->vpl->has_capability( VPL_MANAGE_CAPABILITY );
-            if ((strlen( $rawexecution ) > 0 && (strlen( $evaluation ) + strlen( $proposedgrade ) == 0)) || $manager) {
-                $ce->execution = $rawexecution;
-            }
-        }
-        return $ce;
+    $ce = new stdClass();
+    $ce->compilation = '';
+    $ce->evaluation = '';
+    $ce->execution = '';
+    $ce->grade = '';
+    //$ce->evaluationtime = '';
+    $ce->nevaluations = $this->instance->nevaluations;
+
+    $vplinstance = $this->vpl->get_instance();
+    $ce->freeevaluations = $vplinstance->freeevaluations;
+    $ce->reductionbyevaluation = $vplinstance->reductionbyevaluation;
+
+    if ($response == null) {
+        $response = $this->getce();
     }
+
+    if (!empty($response['compilation'])) {
+        $ce->compilation = $response['compilation'];
+    }
+
+    if (!empty($response['executed']) && $response['executed'] > 0) {
+
+        $rawexecution = $response['execution'];
+
+        $evaluation = $this->proposedcomment($rawexecution);
+        $proposedgrade = $this->proposedgrade($rawexecution);
+
+        $ce->evaluation = $evaluation;
+
+        if (strlen($proposedgrade) && $this->vpl->get_instance()->grade) {
+            $sgrade = $this->get_grade_core($proposedgrade);
+            $ce->grade = get_string('proposedgrade', VPL, $sgrade);
+        }
+
+        // Show raw execution if no grade or manager
+        $manager = $this->vpl->has_capability(VPL_MANAGE_CAPABILITY);
+        if ((strlen($rawexecution) > 0 &&
+            (strlen($evaluation) + strlen($proposedgrade) == 0)) || $manager) {
+
+            $ce->execution = $rawexecution;
+        }
+
+        /******** Safe Evaluation Time Extraction ********/
+        try {
+
+             error_log("STEP CE-2: Raw instance evaluationtime = " . print_r($this->instance->evaluationtime, true));
+    error_log("STEP CE-3: Raw instance istle = " . print_r($this->instance->istle, true));
+            $ce->evaluationtime = $this->instance->evaluationtime;
+$ce->istle = $this->instance->istle;
+        } catch (Exception $e) {
+             error_log("ERROR CE-6: Exception occurred while fetching evaluationtime");
+    error_log("ERROR MESSAGE: " . $e->getMessage());
+            $ce->evaluationtime = '';
+        }
+        /******** End Evaluation Time Extraction ********/
+    }
+
+    return $ce;
+}
     public function get_detail() {
         $ret = '';
         $subf = $this->get_submitted_fgm();

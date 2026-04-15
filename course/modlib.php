@@ -1,3 +1,4 @@
+
 <?php
 // This file is part of Moodle - http://moodle.org/
 //
@@ -173,6 +174,7 @@ function add_moduleinfo($moduleinfo, $course, $mform = null) {
 // algotithm check by ram mohan
     if($moduleinfo->modulename=='vpl'){
         $cm->algorithm = $moduleinfo->algorithm;
+        $tlelimit = $moduleinfo->tlelimit; //TLE VALUE 
     }
 
 
@@ -648,6 +650,12 @@ function update_moduleinfo($cm, $moduleinfo, $course, $mform = null) {
     if (!$updateinstancefunction($moduleinfo, $mform)) {
         print_error('cannotupdatemod', '', course_get_url($course, $cm->section), $moduleinfo->modulename);
     }
+
+    //tle code 
+    if ($moduleinfo->modulename == 'vpl') {
+    
+    $moduleinfo->tlelimit = $moduleinfo->tlelimit ?? 0; //update by chandrika
+}
 
     // This needs to happen AFTER the grademin/grademax have already been updated.
     if (!empty($data->grade_rescalegrades) && $data->grade_rescalegrades == 'yes') {

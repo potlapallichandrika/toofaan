@@ -30,8 +30,11 @@ define(
         'jqueryui',
         'mod_vpl/vplutil',
     ],
+
     function($, jqui, VPLUtil) {
+        VPLUtil.log("VPLUI AMD MODULE EXECUTED123");
         var VPLUI = {};
+var executionStartTime = 0;
         // Get scrollBarWidth.
         VPLUI.scrollBarWidth = function() {
             var parent, child, width;
@@ -571,6 +574,8 @@ define(
             VPLUtil.setProcessId(coninfo.processid);
             var ws = null;
             var pb = null;
+            //executionStartTime = new Date().getTime();
+            VPLUtil.log("Execution started at:", executionStartTime);
             var deferred = $.Deferred();
             var defail = function(m) {
                 deferred.reject(m);
@@ -613,8 +618,73 @@ define(
                     VPLUI.requestAction('retrieve', '', data, externalActions.ajaxurl)
                     .done(
                         function(response) {
+
+                            VPLUtil.log(' message from retrive',response);
                             deferred.resolve();
                             if (externalActions.setResult) {
+                                //console.log('Seconds : ',etime);
+
+                // Execution Time
+            // try{
+            //     var d=new Date();
+            //     var etime=0;
+            //     etime=(d.getTime()-etime)/1000;
+            //     if($('#etimediv').length){
+            //     $('#etimediv').remove();
+            //     }
+            // }
+            // catch(e){
+
+            // }
+// try {
+//     var executionEndTime = new Date().getTime();
+//     var executionTime = (executionEndTime - executionStartTime) / 1000;
+//     VPLUtil.log("Execution Time:", executionTime);
+
+//     if ($('#etimediv').length) {
+//         $('#etimediv').remove();
+//     }
+
+//     $('#vpl_results').prepend(
+//         '<h4 id="etimediv" ' +
+//         'class="vpl_ide_grade ui-accordion-header ui-state-default ' +
+//         'ui-corner-all ui-accordion-icons" ' +
+//         'style="padding:5px 10px;font-size:14px;">' +
+//         'Execution Time : ' + executionTime.toFixed(3) + ' sec' +
+//         '</h4>'
+//     );
+// } catch (e) {
+//     //console.log(e);
+// }
+
+// Evalution Time Extracting from results.
+         try {
+    var evaluationtime = parseFloat(response.evaluationtime);
+
+    if ($('#etimediv2').length) {
+        $('#etimediv2').remove();
+    }
+
+    if (!isNaN(evaluationtime)) {
+
+        if (evaluationtime > 999) {
+            evaluationtime = (evaluationtime / 1000).toFixed(2) + " Seconds";
+        } else {
+            evaluationtime = evaluationtime.toFixed(2) + " Milli Seconds";
+        }
+
+        $('#vpl_results').prepend(
+            '<h4 id="etimediv2" ' +
+            'class="vpl_ide_grade ui-accordion-header ui-state-default ' +
+            'ui-corner-all ui-accordion-icons" ' +
+            'style="padding:5px 10px;font-size:14px;">' +
+            'Evaluation Time : ' + evaluationtime +
+            '</h4>'
+        );
+    }
+
+} catch (e) {
+}
                                 externalActions.setResult(response, true);
                             }
                         }

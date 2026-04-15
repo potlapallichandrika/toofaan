@@ -134,9 +134,10 @@ if (!empty($add)) {
         $data->introeditor = array('text'=>'', 'format'=>FORMAT_HTML, 'itemid'=>$draftid_editor); // TODO: add better default
     }
 
-    // algorithm change by ram mohan
+    // tle code update by chandrika
     if($data->modulename=='vpl'){
         $data->algorithm    = $cm->algorithm;
+        $data->tlelimit    = $cm->tlelimit;
     }
     if (plugin_supports('mod', $data->modulename, FEATURE_ADVANCED_GRADING, false)
             and has_capability('moodle/grade:managegradingforms', $context)) {
@@ -195,7 +196,30 @@ if (!empty($add)) {
 
     // algorithm change by ram mohan
     if($data->modulename=='vpl'){
+
+    //   print_r($data->timelimit_minutes);
+    // die();
         $data->algorithm    = $cm->algorithm;
+
+       // ✅ Timer logic code updated by chandrika
+   $minutes = isset($data->timelimit_minutes) ? $data->timelimit_minutes : 0;
+
+    if ($minutes >= 10080) {
+        $data->timelimit_value = $minutes / 10080;
+        $data->timelimit_unit = 'weeks';
+    } else if ($minutes >= 1440) {
+        $data->timelimit_value = $minutes / 1440;
+        $data->timelimit_unit = 'days';
+    } else if ($minutes >= 60) {
+        $data->timelimit_value = $minutes / 60;
+        $data->timelimit_unit = 'hours';
+    } else {
+        $data->timelimit_value = $minutes;
+        $data->timelimit_unit = 'minutes';
+    }
+
+    //$data->timelimit_enabled = ($minutes > 0) ? 1 : 0; 
+    $data->timelimit_enabled = 0;
     }
 
     $sectionname = get_section_name($course, $cw);
@@ -329,6 +353,27 @@ if ($mform->is_cancelled()) {
 // algorithm check ram mohan
 
 //alert("Hello check");
+
+// ---------- TLE logic (added) ----------
+document.getElementById("id_tlelimit").disabled = true; 
+// Get the checkbox
+  var checkBox = document.getElementById("id_checktle");
+//alert("xvcvcx");
+document.getElementById("fitem_id_tlelimit").style.display = "none";
+
+document.getElementById("id_checktle").onclick = function(){
+    if(checkBox.checked == true){
+        document.getElementById("id_tlelimit").disabled = false; 
+document.getElementById("fitem_id_tlelimit").style.display = "block";
+    }
+    else{
+        document.getElementById("id_tlelimit").disabled = true; 
+document.getElementById("fitem_id_tlelimit").style.display = "none";
+
+    }
+}
+// ---------- TLE logic end ----------
+
 document.getElementById("id_algorithm").disabled = true; 
 // Get the checkbox
   var checkBox1 = document.getElementById("id_enablealgocheck");
@@ -347,5 +392,7 @@ document.getElementById("id_enablealgocheck").onclick = function(){
 
 
 </script>
+
+
 
 

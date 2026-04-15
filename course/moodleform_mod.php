@@ -1,3 +1,4 @@
+
 <?php
 // This file is part of Moodle - http://moodle.org/
 //
@@ -1228,7 +1229,8 @@ abstract class moodleform_mod extends moodleform {
            
 
 
-            
+          
+
             $mform->addElement( 'select', 'algorithm',  'Algorithm To Check', array (
                 '' => 'Select Algorithm',
                 'BFS' => 'Breadth-First Search (BFS)',
@@ -1246,6 +1248,18 @@ abstract class moodleform_mod extends moodleform {
             $mform->setDefault('algorithm', '');
             $mform->addElement('checkbox', 'enablealgocheck','Enable Algorithm Check');//TIME LIMIT Nano(Sec 10^9, Milli 10^6, Micro 10^3)
             $mform->setDefault('enablealgocheck', '');
+
+
+                /* ================= TLE CODE (ADD HERE) chandrika================= */
+
+    $mform->addElement('checkbox', 'checktle', 'Enable TLE');
+    $mform->setDefault('checktle', 0);
+
+    $mform->addElement('text', 'tlelimit', 'Raise TLE After (in nano sec)');
+    $mform->setType('tlelimit', PARAM_INT);
+    $mform->setDefault('tlelimit', 0);
+    $mform->addHelpButton('tlelimit', 'tlelimit', $component = 'vpl');
+            
         }
 
         // If the 'show description' feature is enabled, this checkbox appears below the intro.
