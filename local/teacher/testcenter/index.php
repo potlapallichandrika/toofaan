@@ -17,6 +17,21 @@ $PAGE->set_pagelayout('standard');
 $PAGE->set_context(context_system::instance());
 $PAGE->set_title('Tessellator 5.0-testcenter');
 
+
+//retriving course id from url
+
+$params = explode("-", $_GET['topics']);
+// var_dump($params);
+$cid=(int)$params[0];  // course id
+$secid=(int)$params[1];   //section id or topicid inthe course
+
+if(!$id){
+    $cid = optional_param('cid',0, PARAM_INT);
+    $secid = optional_param('secid',0, PARAM_INT);
+}
+if($cid){
+    $course=get_course($cid);
+}
 // === JSH5P crossword code by chandrika===
 $PAGE->requires->jquery();
 $PAGE->requires->js_init_code('
@@ -66,20 +81,7 @@ if (!(user_has_role_assignment($USER->id,3) ) ) {
 }
 
 
-//retriving course id from url
 
-$params = explode("-", $_GET['topics']);
-// var_dump($params);
-$cid=(int)$params[0];  // course id
-$secid=(int)$params[1];   //section id or topicid inthe course
-
-if(!$id){
-    $cid = optional_param('cid',0, PARAM_INT);
-    $secid = optional_param('secid',0, PARAM_INT);
-}
-if($cid){
-    $course=get_course($cid);
-}
 else{
     redirect($CFG->wwwroot.'/local/teacher/dashboard.php');
 }
