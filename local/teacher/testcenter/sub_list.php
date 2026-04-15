@@ -166,6 +166,11 @@ $acivitystopdate=0;
 //var_dump($activityTypeIds);
 //exit;
 
+echo 'actid = ' . $actid . '<br>';
+echo 'typeid = ' . $typeid . '<br>';
+echo 'h5pactivity type id = ' . $activityTypeIds['h5pactivity'] . '<br>';
+exit;
+
 		if($DB->get_field('activity_status_tsl','status',  array('activityid' => $actid))){
                         $result=$DB->get_field('activity_status_tsl','status',  array('activityid' => $actid));
 			$acivitystatus= $result;
