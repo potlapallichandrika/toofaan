@@ -164,7 +164,7 @@ $acivitystatus=0;
 $acivitystopdate=0;
 var_dump($typeid);
 var_dump($activityTypeIds);
-// exit;
+exit;
 
 
 
