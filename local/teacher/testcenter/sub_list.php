@@ -631,132 +631,173 @@ echo '<span style="display:none" id="watchCount">'.$watchCount.'</span>';
 }//if activity is vpl $acivitystopdate
 
 
-// hp crossword   block start by chandrika
+// h5p code by chandrika
 elseif ($typeid == $activityTypeIds['h5pactivity']) {
+
     echo "<div style='background:yellow;padding:5px;'>H5P REPORT BLOCK EXECUTED</div>";
 
     // ==================== H5P ACTIVITY ====================
-    $cm = get_coursemodule_from_id('h5pactivity', $actid, 0, false, MUST_EXIST);
-    $h5p = $DB->get_record('h5pactivity', ['id' => $cm->instance], '*', MUST_EXIST);
+    $cm     = get_coursemodule_from_id('h5pactivity', $actid, 0, false, MUST_EXIST);
+    $h5p    = $DB->get_record('h5pactivity', ['id' => $cm->instance], '*', MUST_EXIST);
     $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
 
     // Get students (role 5 = student)
-    $context = context_course::instance($cm->course);
+    $context  = context_course::instance($cm->course);
     $students = get_role_users(5, $context);
 
     // Counters
     $loggedin = $submitted = $graded = $star = $redstar = $watchCount = 0;
 
     // Field IDs
-    $rollfield = $DB->get_field('user_info_field', 'id', ['shortname' => 'rollno']);
+    $rollfield    = $DB->get_field('user_info_field', 'id', ['shortname' => 'rollno']);
     $sectionfield = $DB->get_field('user_info_field', 'id', ['shortname' => 'section']);
 
-    echo '<div class="repo">
+    echo '
+    <div class="repo">
         <table id="myTable" class="CSSTableGenerator table table-hover course-list-table tablesorter">
             <thead>
                 <tr>
-                    <th style="text-align:center" class="header">Status</th>
-                    <th class="header">Roll No</th>
-                    <th class="header">Full Name</th>
-                    <th class="header" style="text-align:center">Section</th>
-                    <th class="header" style="text-align:center">IP Address</th>
-                    <th class="header">Last Submission</th>
-                    <th class="header" style="text-align:center">Submissions</th>
-                    <th class="header" style="text-align:center">Grade</th>
-                    <th class="header" style="text-align:center">Watch</th>
+                    <th style="text-align:center">Status</th>
+                    <th>Roll No</th>
+                    <th>Full Name</th>
+                    <th style="text-align:center">Section</th>
+                    <th style="text-align:center">IP Address</th>
+                    <th>Last Submission</th>
+                    <th style="text-align:center">Submissions</th>
+                    <th style="text-align:center">Grade</th>
+                    <th style="text-align:center">Watch</th>
                 </tr>
             </thead>
             <tbody>';
 
     foreach ($students as $student) {
-        $roll = getTCStudentData($student->id, $rollfield);
+
+        $roll    = getTCStudentData($student->id, $rollfield);
         $section = getTCStudentData($student->id, $sectionfield);
 
         // Filter by section
-        if ($secname !== 'All' && $section !== $secname) continue;
+        if ($secname !== 'All' && $section !== $secname) {
+            continue;
+        }
 
         // Login status
         $loginstatus = $DB->get_field('userinfo_tsl', 'loginstatus', ['userid' => $student->id]);
-        if (in_array($loginstatus, [2, 4])) $loggedin++;
+        if (in_array($loginstatus, [2, 4])) {
+            $loggedin++;
+        }
 
         // Watchlist
         $watch = getStatus($student->id, $cm->course);
-        if ($watch) $watchCount++;
+        if ($watch) {
+            $watchCount++;
+        }
 
-       // === H5P ATTEMPTS WITH IP ===
-      $attempts = $DB->get_records_sql("
-    SELECT a.id,
-           a.timemodified,
-           a.ipaddress,
-           a.rawscore,
-           a.maxscore
-    FROM {h5pactivity_attempts} a
-    WHERE a.h5pactivityid = ?
-    AND a.userid = ?
-    ORDER BY a.timemodified DESC
-", [$h5p->id, $student->id]);
+        // ================= H5P Attempts =================
+        $attempts = $DB->get_records_sql("
+            SELECT a.id, a.timemodified, a.ipaddress, ar.rawscore, ar.maxscore
+            FROM {h5pactivity_attempts} a
+            JOIN {h5pactivity_attempts_results} ar ON ar.attemptid = a.id
+            WHERE a.h5pactivityid = ? AND a.userid = ?
+            ORDER BY a.timemodified DESC
+        ", [$h5p->id, $student->id]);
 
-        $statusImg = 'flag-red-icon.png';
-        $statusNum = 0;
-        $lastsub = '--';
-        $subcount = '--';
-        $grade = 'NS';
-        $gradeNum = -2;
-        $attemptip = '-';  // ← DECLARE EARLY
+        // Default values
+        $statusImg  = 'flag-red-icon.png';
+        $statusNum  = 0;
+        $lastsub    = '--';
+        $subcount   = '--';
+        $grade      = 'NS';
+        $gradeNum   = -2;
+        $attemptip  = '-';
 
         if ($attempts) {
-            $latest = reset($attempts);  // ← ONLY ONCE
 
-            $attemptip = $latest->ipaddress ?: '-';  // ← SET IP HERE
-            $lastsub = userdate($latest->timemodified);
+            $latest    = current($attempts);
+            $attemptip = $latest->ipaddress ?: '-';
+
+            $lastsub  = userdate($latest->timemodified);
             $subcount = count($attempts);
             $submitted++;
 
-            $pct = $latest->maxscore > 0 ? round(($latest->rawscore / $latest->maxscore) * 100) : 0;
-            $grade = "$pct / 100";
+            $pct = ($latest->maxscore > 0)
+                ? round(($latest->rawscore / $latest->maxscore) * 100)
+                : 0;
+
+            $grade    = "$pct / 100";
             $gradeNum = $pct;
 
             if ($pct >= 100) {
-                $graded++; $star++;
-                $statusImg = 'green-star.png'; $statusNum = 2;
-                if ($watch) { $redstar++; $statusImg = 'red-star.png'; }
+                $graded++;
+                $star++;
+                $statusImg = 'green-star.png';
+                $statusNum = 2;
+
+                if ($watch) {
+                    $redstar++;
+                    $statusImg = 'red-star.png';
+                }
+
             } elseif ($pct > 0) {
                 $graded++;
-                $statusImg = 'flag-green-icon.png'; $statusNum = 2;
+                $statusImg = 'flag-green-icon.png';
+                $statusNum = 2;
+
             } else {
-                $statusImg = 'flag-orange-icon.png'; $statusNum = 1;
+                $statusImg = 'flag-orange-icon.png';
+                $statusNum = 1;
             }
         }
 
         $watchIcon = $watch ? 'eye-24-512.png' : 'unwatch-512.png';
 
-        echo '<tr>
-            <td><span style="display:none">' . $statusNum . '</span>
-                <img src="' . $CFG->wwwroot . '/local/teacher/testcenter/images/' . $statusImg . '" width="16px" /></td>
-            <td><a target="_blank" href="' . $CFG->wwwroot . '/report/outline/user.php?id=' . $student->id . '&course=' . $course->id . '&mode=outline">' . $roll . '</a></td>
-            <td><a target="_blank" href="' . $CFG->wwwroot . '/report/outline/user.php?id=' . $student->id . '&course=' . $course->id . '&mode=outline">' . $student->firstname . ' ' . $student->lastname . '</a></td>
-            <td style="text-align:center">' . $section . '</td>
-            <td style="text-align:center" class="ip">' . htmlspecialchars($attemptip) . '</td>
-            <td>' . $lastsub . '</td>
-            <td style="text-align:center">' . $subcount . '</td>
-            <td style="text-align:center"><span style="display:none">' . $gradeNum . '</span>' . $grade . '</td>
+        echo '
+        <tr>
             <td>
-                <span class="watchlist-status' . $student->id . '" style="display:none">' . ($watch ? 1 : 0) . '</span>
-                <img data-ref="' . ($watch ? 1 : 0) . '" id="' . $student->id . '" class="watchlist" src="' . $CFG->wwwroot . '/local/teacher/testcenter/images/' . $watchIcon . '" width="16px"/>
+                <span style="display:none">'.$statusNum.'</span>
+                <img src="'.$CFG->wwwroot.'/local/teacher/testcenter/images/'.$statusImg.'" width="16px"/>
+            </td>
+
+            <td>
+                <a target="_blank" href="'.$CFG->wwwroot.'/report/outline/user.php?id='.$student->id.'&course='.$course->id.'&mode=outline">
+                    '.$roll.'
+                </a>
+            </td>
+
+            <td>
+                <a target="_blank" href="'.$CFG->wwwroot.'/report/outline/user.php?id='.$student->id.'&course='.$course->id.'&mode=outline">
+                    '.$student->firstname.' '.$student->lastname.'
+                </a>
+            </td>
+
+            <td style="text-align:center">'.$section.'</td>
+            <td style="text-align:center">'.htmlspecialchars($attemptip).'</td>
+            <td>'.$lastsub.'</td>
+            <td style="text-align:center">'.$subcount.'</td>
+
+            <td style="text-align:center">
+                <span style="display:none">'.$gradeNum.'</span>'.$grade.'
+            </td>
+
+            <td>
+                <span class="watchlist-status'.$student->id.'" style="display:none">'.($watch ? 1 : 0).'</span>
+                <img data-ref="'.($watch ? 1 : 0).'" 
+                     id="'.$student->id.'" 
+                     class="watchlist" 
+                     src="'.$CFG->wwwroot.'/local/teacher/testcenter/images/'.$watchIcon.'" 
+                     width="16px"/>
             </td>
         </tr>';
     }
 
     echo '</tbody></table></div>';
 
-    // Hidden counters for status bar
-    echo '<span style="display:none" id="loggedinusers">' . $loggedin . '</span>';
-    echo '<span style="display:none" id="csubCount">' . $submitted . '</span>';
-    echo '<span style="display:none" id="cgradeCount">' . ($graded - $star) . '</span>';
-    echo '<span style="display:none" id="cstarCount">' . ($star - $redstar) . '</span>';
-    echo '<span style="display:none" id="crstarCount">' . $redstar . '</span>';
-    echo '<span style="display:none" id="watchCount">' . $watchCount . '</span>';
-
+    // Hidden counters
+    echo '<span style="display:none" id="loggedinusers">'.$loggedin.'</span>';
+    echo '<span style="display:none" id="csubCount">'.$submitted.'</span>';
+    echo '<span style="display:none" id="cgradeCount">'.($graded - $star).'</span>';
+    echo '<span style="display:none" id="cstarCount">'.($star - $redstar).'</span>';
+    echo '<span style="display:none" id="crstarCount">'.$redstar.'</span>';
+    echo '<span style="display:none" id="watchCount">'.$watchCount.'</span>';
 }
 else{
 require_once('quizsubmissions.php');
