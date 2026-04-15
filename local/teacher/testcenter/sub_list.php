@@ -162,9 +162,9 @@ $secname = optional_param('secname', 'All',PARAM_TEXT);
 
 $acivitystatus=0;
 $acivitystopdate=0;
-var_dump($typeid);
-var_dump($activityTypeIds);
-exit;
+// var_dump($typeid);
+// var_dump($activityTypeIds);
+// exit;
 
 
 
