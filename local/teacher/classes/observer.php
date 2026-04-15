@@ -7,7 +7,7 @@ class observer {
     public static function h5p_statement_received(\mod_h5pactivity\event\statement_received $event) {
         global $DB;
 
-        bugging('H5P observer fired for user ' . $event->userid, DEBUG_DEVELOPER);
+        debugging('H5P observer fired for user ' . $event->userid, DEBUG_DEVELOPER);
         $context = $event->get_context();
         $cm = $DB->get_record('course_modules', ['id' => $context->instanceid]);
         if (!$cm) {
