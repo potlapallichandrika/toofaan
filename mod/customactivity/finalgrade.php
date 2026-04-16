@@ -67,7 +67,10 @@ foreach ($questions as $q) {
     $student_answer = "(no answer)";
     foreach ($submissions as $s) {
         if ($s->questionid == $q->id) {
-            $student_answer = $s->tempsave;
+            $student_answer = trim((string)($s->answer ?? ''));
+            if ($student_answer === '') {
+                $student_answer = "(no answer)";
+            }
             break;
         }
     }
@@ -75,7 +78,6 @@ foreach ($questions as $q) {
     $prompt .= "Question {$q->qno}:\n{$q->questiontext}\n\n";
     $prompt .= "Model Answer:\n" . trim($q->modelanswer) . "\n\n";
     $prompt .= "Student's Answer:\n{$student_answer}\n\n";
-    $prompt .= "----------------------------------------\n\n";
 }
 
 $prompt .= "Evaluate the ENTIRE submission as a whole.\n";

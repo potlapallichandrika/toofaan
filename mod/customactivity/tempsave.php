@@ -4,7 +4,7 @@ require_once('../../config.php');
 
 $id       = required_param('id', PARAM_INT);
 $qid      = required_param('q', PARAM_INT);
-$answer   = optional_param('answer', '', PARAM_RAW);
+$answer = optional_param('answer', null, PARAM_RAW);
 $timespent = optional_param('timespent', 0, PARAM_INT);
 
 $cm = get_coursemodule_from_id('customactivity', $id, 0, false, MUST_EXIST);
@@ -24,9 +24,12 @@ $record = $record ?: new stdClass();
 $record->customactivityid = $activity->id;
 $record->questionid       = $qid;
 $record->userid           = $USER->id;
-$record->tempsave         = $answer;
+if ($answer !== null) {
+    $record->answer = trim($answer);
+}
 $record->timespent        = $timespent;
 $record->timecreated     = time();
+$record->ipaddress = getremoteaddr();
 
 if (!empty($record->id)) {
     $DB->update_record('customactivity_submissions', $record);

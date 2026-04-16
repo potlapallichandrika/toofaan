@@ -33,7 +33,7 @@ $record = $record ?: new stdClass();
 $record->customactivityid = $activity->id;
 $record->questionid       = $currentq->id;
 $record->userid           = $USER->id;
-$record->tempsave = $answer;
+$record->answer = $answer;
 $record->timespent = max((int)($record->timespent ?? 0), $timespent);
 $record->ipaddress        = getremoteaddr();   // add here
 if (empty($record->id)) {
