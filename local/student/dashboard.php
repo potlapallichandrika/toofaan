@@ -56,7 +56,7 @@ if (user_has_role_assignment($USER->id, 5)) {
             if (is_object($value1)) {
                 if (
                     $value1->visible == true &&
-                    (($value1->mod == 'vpl') || ($value1->mod == 'quiz') || ($value1->mod == 'teleconnect') || ($value1->mod == 'url')  || ($value1->mod == 'h5pactivity') || ($value1->mod == 'customactivity') ) &&
+                    (($value1->mod == 'vpl') || ($value1->mod == 'quiz') || ($value1->mod == 'teleconnect') || ($value1->mod == 'url')  || ($value1->mod == 'h5pactivity') || ($value1->mod == 'customactivity') || ($value1->mod == 'customassessment') ) &&
                     is_activity_started_and_has_status($value1->cm, $now, 1)
                 ) {
                     $sortedActivities[] = array(
@@ -109,6 +109,10 @@ if (user_has_role_assignment($USER->id, 5)) {
  else if ($im == 'customactivity') {
     echo "Custom Activity";
 }
+//generating questions using chat gpt code update by chandrika
+  else if ($im == 'customassessment') {
+    echo "Custom Assessment";
+}
         global $DB;
         $startdate = userdate($DB->get_field('activity_status_tsl', 'activity_start_time', array('activityid' => $activitycm)));
 
@@ -142,6 +146,13 @@ else if ($im == 'customactivity') {
     $question = $DB->get_field('customactivity', 'question', ['id' => $id]);
 
 }
+//generating questions using chat gpt code update by chandrika
+else if ($im == 'customassessment') {
+    $id = $DB->get_field('course_modules', 'instance', ['id' => $activitycm]);
+    
+    $question = $DB->get_field('customassessment', 'name', ['id' => $id]);
+
+}
         else if ($im == 'url') {
             $tcid = $DB->get_field('course_modules', 'instance', array('id' => $activitycm));
             $descact = $DB->get_field_sql("SELECT `intro` FROM `mdl_url` WHERE `id` = '$tcid'");
@@ -171,7 +182,10 @@ else if ($im == 'customactivity') {
 else if ($im == 'customactivity') {
     $reflink = $CFG->wwwroot . "/mod/customactivity/view.php?id=" . $activitycm;
 }
-        
+//generating questions using chat gpt code update by chandrika
+      else if ($im == 'customassessment') {
+    $reflink = $CFG->wwwroot . "/mod/customassessment/view.php?id=" . $activitycm;
+}   
         elseif(strcasecmp($im, "url") == 0) {
             $tci = $DB->get_field('course_modules', 'instance', array('id' => $activitycm));
             $desc = $DB->get_field_sql("SELECT `externalurl` FROM `mdl_url` WHERE `id` = '$tci'");
