@@ -957,12 +957,317 @@ $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
     echo '<span style="display:none" id="watchCount">' . $watchCount . '</span>';
 }
 
+//generating questions using chat gpt code update by chandrika
+elseif ($typeid == $activityTypeIds['customassessment']) {
+
+    // ==================== CUSTOM ASSESSMENT ====================
+
+    $cm = get_coursemodule_from_id('customassessment', $actid, 0, false, MUST_EXIST);
+    $ca = $DB->get_record('customassessment', ['id' => $cm->instance], '*', MUST_EXIST);
+    $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
+
+    // Context & students
+    $context  = context_course::instance($cm->course);
+    $students = get_role_users(5, $context); // roleid 5 = student
+
+    // Counters
+    $loggedin = $submitted = $evaluated = $star = $redstar = $watchCount = 0;
+
+    $rollfield    = $DB->get_field('user_info_field', 'id', ['shortname' => 'rollno']);
+    $sectionfield = $DB->get_field('user_info_field', 'id', ['shortname' => 'section']);
+
+    echo '<div class="repo">
+        <table id="myTable" class="CSSTableGenerator table table-hover course-list-table tablesorter">
+            <thead>
+                <tr>
+                    <th style="text-align:center">Status</th>
+                    <th>Roll No</th>
+                    <th>Full Name</th>
+                    <th style="text-align:center">Section</th>
+                    <th style="text-align:center">Last Submission</th>
+                    <th style="text-align:center">Grade</th>
+                    <th style="text-align:center">Actions</th>
+                    <th style="text-align:center">Watch</th>
+                </tr>
+            </thead>
+            <tbody>';
+
+    foreach ($students as $student) {
+
+        $roll    = getTCStudentData($student->id, $rollfield);
+        $section = getTCStudentData($student->id, $sectionfield);
+
+        // Section filter
+        if ($secname !== 'All' && $section !== $secname) {
+            continue;
+        }
+
+        // Login status
+        $loginstatus = $DB->get_field('userinfo_tsl', 'loginstatus', ['userid' => $student->id]);
+        if (in_array($loginstatus, [2, 4])) {
+            $loggedin++;
+        }
+
+        // Watchlist
+        $watch = getStatus($student->id, $course->id);
+        if ($watch) {
+            $watchCount++;
+        }
+
+        // Latest attempt
+        $attempts = $DB->get_records(
+            'customassessment_attempt',
+            [
+                'assessmentid' => $ca->id,
+                'userid'       => $student->id
+            ],
+            'id DESC',
+            '*',
+            0,
+            1
+        );
+$attempt = $attempts ? reset($attempts) : null;
+        // Defaults
+        $statusImg   = 'flag-red-icon.png';
+        $statusNum   = 0;
+        $lastsub     = '--';
+        $grade       = 'NS';
+        $gradeNum    = -2;
+        $eye_visible = false;
+        $flag_class  = '';
+
+        if ($attempt) {
+
+            // Count pending answers
+            $pendingAnswers = $DB->count_records('customassessment_answer', [
+                'attemptid' => $attempt->id,
+                'evaluated' => 0
+            ]);
+
+            $lastsub = userdate(
+                $attempt->submitted_at ?: $attempt->started_at,
+                '%d %b %Y %H:%M'
+            );
+
+            // 🟠 In progress
+            if ($attempt->status === 'processing') {
+                $statusImg = 'flag-orange-icon.png';
+                $statusNum = 1;
+                $grade     = 'In Progress';
+            }
+
+            // 🔴 Submitted but pending evaluation
+           else if (
+                $attempt->status === 'submitted'
+                || ($attempt->status === 'evaluated' && $pendingAnswers > 0)
+            ) {
+
+                $submitted++;
+
+                $statusImg   = 'flag-red-icon.png';
+                $statusNum   = 1;
+                $grade       = 'Submitted';
+                $flag_class  = 'bg-danger';
+                $eye_visible = true;
+            }
+
+            // 🟢 Fully evaluated
+            else if ($attempt->status === 'evaluated' && $pendingAnswers == 0) {
+
+                $submitted++;
+                $evaluated++;
+
+                $gradeNum = (int)($attempt->score ?? 0);
+                $grade    = $gradeNum . ' / 100';
+
+                $statusImg   = 'flag-green-icon.png';
+                $statusNum   = 2;
+                $eye_visible = true;
+            }
+        }
+
+        $watchIcon = $watch ? 'eye-24-512.png' : 'unwatch-512.png';
+
+        echo '<tr>';
+
+        // Status
+        echo '<td style="text-align:center">
+                <span style="display:none">' . $statusNum . '</span>
+                <img src="' . $CFG->wwwroot . '/local/teacher/testcenter/images/' . $statusImg . '" width="16">
+              </td>';
+
+        // Roll
+        echo '<td>
+                <a target="_blank" href="' . $CFG->wwwroot . '/report/outline/user.php?id=' .
+                $student->id . '&course=' . $course->id . '&mode=outline">' .
+                htmlspecialchars($roll) . '</a>
+              </td>';
+
+        // Name
+        echo '<td>
+                <a target="_blank" href="' . $CFG->wwwroot . '/report/outline/user.php?id=' .
+                $student->id . '&course=' . $course->id . '&mode=outline">' .
+                fullname($student) . '</a>
+              </td>';
+
+        // Section
+        echo '<td style="text-align:center">' . htmlspecialchars($section) . '</td>';
+
+        // Last submission
+        echo '<td>' . $lastsub . '</td>';
+
+        // Grade
+        echo '<td style="text-align:center">
+                <span style="display:none">' . $gradeNum . '</span>' . $grade;
+
+        if ($flag_class) {
+            echo ' <span class="badge ' . $flag_class . ' ms-1">Pending</span>';
+        }
+
+        echo '</td>';
+
+        // Actions
+        echo '<td style="text-align:center">';
+        if ($eye_visible) {
+            echo '<button class="btn btn-sm btn-outline-primary view-attempt"
+                    data-attemptid="' . $attempt->id . '"
+                    data-student="' . fullname($student) . '">
+                    <i class="fa fa-eye"></i>
+                  </button>';
+        }
+        echo '</td>';
+
+        // Watch
+        echo '<td style="text-align:center">
+                <span class="watchlist-status' . $student->id . '" style="display:none">' . ($watch ? 1 : 0) . '</span>
+                <img class="watchlist"
+                     data-ref="' . ($watch ? 1 : 0) . '"
+                     id="' . $student->id . '"
+                     src="' . $CFG->wwwroot . '/local/teacher/testcenter/images/' . $watchIcon . '"
+                     width="16">
+              </td>';
+
+        echo '</tr>';
+    }
+
+    echo '</tbody></table></div>';
+
+    // Hidden counters
+    echo '<span id="loggedinusers" style="display:none">' . $loggedin . '</span>';
+    echo '<span id="csubCount" style="display:none">' . $submitted . '</span>';
+    echo '<span id="cgradeCount" style="display:none">' . $evaluated . '</span>';
+    echo '<span id="cstarCount" style="display:none">' . ($star - $redstar) . '</span>';
+    echo '<span id="crstarCount" style="display:none">' . $redstar . '</span>';
+    echo '<span id="watchCount" style="display:none">' . $watchCount . '</span>';
+}
+
 else{
 require_once('quizsubmissions.php');
 }
+//generating questions using chat gpt code update by chandrika
+echo '
+<div class="modal fade" id="submissionModal" tabindex="-1" aria-labelledby="submissionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
 
+      <div class="modal-header">
+        <h5 class="modal-title" id="submissionModalLabel">
+          Student Submission Details
+        </h5>
+        <!-- Works in Bootstrap 4 AND 5 -->
+        <button type="button" class="btn-close" 
+                data-dismiss="modal" data-bs-dismiss="modal" 
+                aria-label="Close"></button>
+      </div>
 
+      <div class="modal-body" id="modal-body-content">
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-3">Loading submission details...</p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <!-- Also works in both versions -->
+        <button type="button" class="btn btn-secondary" 
+                data-dismiss="modal" data-bs-dismiss="modal">
+          Close
+        </button>
+        <button type="button" id="evaluateThisStudentBtn" 
+                class="btn btn-primary" style="display:none;">
+          Evaluate This Student
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>';
 ?>
 </body>
 </html>
 
+<script>
+    //generating questions using chat gpt code update by chandrika
+$(document).on('click', '.view-attempt', function () {
+
+    var attemptid   = $(this).data('attemptid');
+    var studentName = $(this).data('student');
+
+    if (!attemptid) {
+        alert("No submission found.");
+        return;
+    }
+
+    $('#submissionModalLabel').text('Submission by ' + studentName);
+
+    $('#modal-body-content').html(
+        '<div class="text-center py-5">' +
+        '<div class="spinner-border text-primary" role="status">' +
+        '<span class="visually-hidden">Loading...</span>' +
+        '</div>' +
+        '<p class="mt-3">Loading submission details...</p>' +
+        '</div>'
+    );
+
+    $('#evaluateThisStudentBtn').hide();
+
+    $('#submissionModal').modal('show');
+
+    $.ajax({
+        url: M.cfg.wwwroot + '/local/teacher/testcenter/student_attempt_details.php',
+        type: 'GET',
+        data: { attemptid: attemptid },
+        dataType: 'html',
+        cache: false,
+        timeout: 10000
+    })
+    .done(function (html) {
+        // Step 1: Remove any leading BOM / invisible chars / whitespace that breaks parsing
+        html = html.replace(/^\s*[\uFEFF\u200B\uFEFF\u2028\u2029]+/, '').trim();
+
+        // Step 2: Insert as HTML
+        $('#modal-body-content').html(html);
+
+        // Step 3: Check for the flag (with fallback)
+        var isEvaluated = $('#modal-body-content').find('#is-evaluated').val() || '0';
+        if (isEvaluated !== '1') {
+            $('#evaluateThisStudentBtn').show();
+        }
+
+        // Optional debug: confirm insertion
+        console.log('HTML inserted successfully. Found evaluated flag:', isEvaluated);
+        console.log('First 200 chars after clean:', html.substring(0, 200));
+    })
+    .fail(function (jqXHR, textStatus, errorThrown) {
+        console.error('AJAX failed:', textStatus, errorThrown);
+        console.error('Status code:', jqXHR.status);
+        console.error('Response preview:', jqXHR.responseText ? jqXHR.responseText.substring(0, 300) : 'No response');
+
+        $('#modal-body-content').html(
+            '<div class="alert alert-danger">Error loading details: ' + textStatus + '</div>'
+        );
+    });
+});
+</script>

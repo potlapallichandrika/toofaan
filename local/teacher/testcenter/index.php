@@ -86,6 +86,40 @@ else{
     //redirect($CFG->wwwroot.'/local/teacher/dashboard.php');
 }
 
+// generating questions using chat gpt code by chandrika
+echo '<input type="hidden" id="courseid" value="'.$cid.'" />';
+// ================= Queue Summary (Evaluation Progress) for assessment by chandrika=================
+$queuesummary = $DB->get_record_sql(
+    "SELECT
+        COUNT(ca.id) AS total,
+        SUM(ca.status = 'evaluated')  AS evaluated,
+        SUM(ca.status = 'processing') AS processing,
+        SUM(ca.status = 'submitted')  AS submitted
+     FROM {customassessment_attempt} ca
+     JOIN {customassessment} c ON c.id = ca.assessmentid
+     WHERE c.courseid = ?
+       AND ca.status IN ('submitted','processing','evaluated')",
+    [$cid]
+);
+
+$total      = (int)$queuesummary->total;
+$evaluated  = (int)$queuesummary->evaluated;
+$processing = (int)$queuesummary->processing;
+$submitted  = (int)$queuesummary->submitted;
+
+// current position
+$current = $evaluated + ($processing > 0 ? 1 : 0);
+
+$total      = (int)($queuesummary->total ?? 0);
+$evaluated  = (int)($queuesummary->evaluated ?? 0);
+$processing = (int)($queuesummary->processing ?? 0);
+
+// Current evaluation position
+$current = $evaluated + ($processing > 0 ? 1 : 0);
+// =========================================================
+//echo '<input type="hidden" id="userid" value="'.$USER->id.'" />';
+
+
 /*initializing required parameters*/
 $currentActivityId=0;
 $currentActivityStatus=0;
@@ -270,11 +304,60 @@ echo '<div class="current-activity row">
      </div>
 
 </div>';
+
+// generating questions using chat gpt code by chandrika
+$totalstudents = $DB->count_records_sql("
+    SELECT COUNT(DISTINCT ue.userid)
+    FROM {user_enrolments} ue
+    JOIN {enrol} e ON e.id = ue.enrolid
+    WHERE e.courseid = ?
+", [$cid]);
+if ($totalstudents  == 0) {
+    // No submissions at all
+    // Show nothing
+}
+else if ($processing > 0) {
+    $current = $evaluated + 1;
+    echo "
+    <div class='alert alert-info' style='margin:10px 20px; text-align:right;'>
+        <strong>Evaluation Status:</strong>
+        Evaluating <b>{$current} / {$totalstudents}</b>
+        <br><small>{$submitted} submitted so far</small>
+    </div>";
+}
+else if ($evaluated == $submitted && $submitted > 0) {
+    echo "
+    <div class='alert alert-success' style='margin:10px 20px; text-align:right;'>
+        <strong>Evaluation Status:</strong>
+        Completed <b>{$evaluated} / {$totalstudents}</b>
+    </div>";
+}
+else {
+    $notattempted = $totalstudents - ($evaluated + $submitted);
+    echo "
+    <div class='alert alert-warning' style='margin:10px 20px; text-align:right;'>
+        <strong>Evaluation Status:</strong>
+        {$evaluated} / {$totalstudents} evaluated
+        <br><small>{$notattempted} students yet to submit</small>
+    </div>";
+}
+echo'<div style="margin: 12px 0; text-align:right; padding-right:20px;">
+    <button type="button" id="evaluateAllBtn" class="btn btn-primary">
+        Evaluate All 
+    </button>
+    <span id="evalProgress" style="margin-left:15px; font-weight:bold; color:#555; display:none;">
+        Evaluating... <span id="evalCurrent">0</span>/<span id="evalTotal">?</span>
+    </span>
+</div>';
+
+echo '<input type="hidden" id="sesskey" value="' . sesskey() . '">';
 ?>
 
 
-
 <!-- /*****************************************status bar end*********************************************/ -->
+
+
+
 
 
 <!-- tabs left side menu -->
@@ -423,6 +506,11 @@ echo '<div class="current-activity row">
                         else if ($activities[$i]['modtypeid'] == $activityTypeIds['customactivity']) {
 
     $activityType = get_string('modulename', 'customactivity');
+                    }
+                    //generating questions by using chat gpt code by chandrika
+                    else if ($activities[$i]['modtypeid'] == $activityTypeIds['customassessment']) {
+
+    $activityType = get_string('modulename', 'customassessment');
                     } 
                                             else{
                             //  $activityType="--";
@@ -506,8 +594,8 @@ echo '<div class="current-activity row">
     $activityTypeIds['quiz'], 
     $activityTypeIds['vpl'], 
     $activityTypeIds['h5pactivity'], 
-    $activityTypeIds['customactivity'] //manual questions adding and evaluate using api key code by chandrika
-    //$activityTypeIds['customassessment']
+    $activityTypeIds['customactivity'], //manual questions adding and evaluate using api key code by chandrika
+    $activityTypeIds['customassessment']
 ])) {
     echo '<td>
         <i 
@@ -621,6 +709,12 @@ echo '<div class="current-activity row">
      else if ($activities[$i]['modtypeid'] == $activityTypeIds['customactivity']) {
 
     $activityType = get_string('modulename', 'customactivity');
+
+}
+// generating questions by using chat gpt code by chandrika
+else if ($activities[$i]['modtypeid'] == $activityTypeIds['customassessment']) {
+
+    $activityType = get_string('modulename', 'customassessment');
 
 }
          else{
@@ -825,7 +919,77 @@ max-width: 100vw!important;
             </style>
 
 
+<script>
+    //generating questions by using chat gpt code by chandrika
+$(document).ready(function () {
 
+ let refreshTimer = null;
+    $("#evaluateAllBtn").on("click", function () {
+
+        // Show progress bar and reset counters
+        $("#evalProgress").show();
+       $("#evalCurrent").text(<?php echo (int)$evaluated; ?>);
+
+      var totalStudents = <?php echo (int)$totalstudents; ?>;
+      $("#evalTotal").text(<?php echo (int)$totalstudents; ?>);
+
+        var $btn = $(this);
+        $btn.prop("disabled", true).text("Evaluating...");
+
+        refreshTimer = setInterval(function () {
+    location.reload();
+}, 4000);
+
+        $.ajax({
+            url: M.cfg.wwwroot + "/local/teacher/testcenter/evaluate_now.php",
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                courseid: <?php echo (int)$cid; ?>,
+                sesskey: M.cfg.sesskey
+            },
+            success: function (response) {
+                console.log("Server response:", response); // Check response in console
+                clearInterval(refreshTimer);
+
+                $("#evalProgress").hide();
+                $btn.prop("disabled", false).text("Evaluate All");
+
+                if (response.status === 'success') {
+                    // ✅ Show a success message
+                    $('<div class="alert alert-success mt-2">All students evaluated successfully!</div>')
+                        .insertAfter($btn)
+                        .delay(3000)
+                        .fadeOut(500, function() { $(this).remove(); });
+                } else if (response.status === 'info') {
+                    $('<div class="alert alert-info mt-2">' + (response.message || "Nothing to evaluate.") + '</div>')
+                        .insertAfter($btn)
+                        .delay(3000)
+                        .fadeOut(500, function() { $(this).remove(); });
+                } else {
+                    $('<div class="alert alert-danger mt-2">Problem: ' + (response.message || "Unknown error") + '</div>')
+                        .insertAfter($btn)
+                        .delay(3000)
+                        .fadeOut(500, function() { $(this).remove(); });
+                }
+            },
+            error: function (xhr, status, error) {
+            clearInterval(refreshTimer);
+                console.error("Evaluation Error:", error);
+
+                $("#evalProgress").hide();
+                $btn.prop("disabled", false).text("Evaluate All");
+
+                $('<div class="alert alert-danger mt-2">Error during evaluation. Check console.</div>')
+                    .insertAfter($btn)
+                    .delay(3000)
+                    .fadeOut(500, function() { $(this).remove(); });
+            }
+        });
+    });
+
+});
+</script>
 
 
 

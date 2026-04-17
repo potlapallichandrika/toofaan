@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="mod/customassessment/db" VERSION="2025010200" COMMENT="XMLDB file for Moodle mod_customassessment">
+  <TABLES>
+    <!-- ================== ASSESSMENTS ================== -->
+   <TABLES>
+        <TABLE NAME="customassessment" COMMENT="Main assessment instance">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="subjectid" TYPE="int" LENGTH="20" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="topicid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="numquestions" TYPE="int" LENGTH="5" NOTNULL="true" DEFAULT="10" SEQUENCE="false"/>
+                <FIELD NAME="status" TYPE="char" LENGTH="30" NOTNULL="true" DEFAULT="created" SEQUENCE="false"/>
+                <FIELD NAME="createdby" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="bloomslevels" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+            </KEYS>
+        </TABLE>
+
+    <!-- ================== QUESTIONS ================== -->
+    <TABLE NAME="customassessment_questions" COMMENT="Generated questions">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="assessmentid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="questiontext" TYPE="text" NOTNULL="true"/>
+        <FIELD NAME="modelanswer" TYPE="text" NOTNULL="false"/>
+        <FIELD NAME="bloomslevel" TYPE="char" LENGTH="50" NOTNULL="false"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="rejected"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="source" TYPE="char" LENGTH="50" NOTNULL="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="assessment_fk" TYPE="foreign" FIELDS="assessmentid" REFTABLE="customassessment" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="assessmentid" UNIQUE="false" FIELDS="assessmentid"/>
+      </INDEXES>
+    </TABLE>
+
+    <!-- ================== STUDENT ATTEMPTS ================== -->
+    <TABLE NAME="customassessment_attempt" COMMENT="Student attempts">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="assessmentid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="not_started"/>
+        <FIELD NAME="started_at" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="submitted_at" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="score" TYPE="number" LENGTH="5" PRECISION="2" NOTNULL="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="assessment_fk" TYPE="foreign" FIELDS="assessmentid" REFTABLE="customassessment" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="user_assessment" UNIQUE="false" FIELDS="userid,assessmentid"/>
+      </INDEXES>
+    </TABLE>
+
+    <!-- ================== STUDENT ANSWERS ================== -->
+    <TABLE NAME="customassessment_answer" COMMENT="Student responses">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="attemptid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="questionid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="answer" TYPE="text" NOTNULL="false"/>
+        <FIELD NAME="score" TYPE="int" LENGTH="5" NOTNULL="false"/>
+        <FIELD NAME="feedback" TYPE="text" NOTNULL="false"/>
+        <FIELD NAME="evaluated" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="attempt_fk" TYPE="foreign" FIELDS="attemptid" REFTABLE="customassessment_attempt" REFFIELDS="id"/>
+        <KEY NAME="question_fk" TYPE="foreign" FIELDS="questionid" REFTABLE="customassessment_questions" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
+
+    <!-- ================== PROCESSING QUEUE ================== -->
+    <TABLE NAME="customassessment_eva_queue" COMMENT="Queue for background evaluation">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="type" TYPE="char" LENGTH="50" NOTNULL="true"/>
+        <FIELD NAME="ref_id" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="pending"/>
+        <FIELD NAME="created_at" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="processed_at" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="failcount" TYPE="int" LENGTH="3" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+       <INDEX NAME="status_type" UNIQUE="false" FIELDS="status,type"/>
+      </INDEXES>
+    </TABLE>
+
+<TABLE NAME="customassessment_subjects" COMMENT="List of subjects (e.g., Java, Mathematics)">
+  <FIELDS>
+    <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+    <FIELD NAME="subjectname" TYPE="char" LENGTH="255" NOTNULL="true"/>
+    <FIELD NAME="description" TYPE="text" NOTNULL="false"/>
+    <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+    <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+  </FIELDS>
+  <KEYS>
+    <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+  </KEYS>
+  <INDEXES>
+    <INDEX NAME="name_idx" UNIQUE="false" FIELDS="subjectname"/>
+  </INDEXES>
+</TABLE>
+
+
+<TABLE NAME="customassessment_topics" COMMENT="Topics under each subject (e.g., Data Types under Java)">
+  <FIELDS>
+    <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+    <FIELD NAME="subjectid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+    <FIELD NAME="topicname" TYPE="char" LENGTH="255" NOTNULL="true"/>
+    <FIELD NAME="description" TYPE="text" NOTNULL="false"/>
+    <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+    <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+  </FIELDS>
+  <KEYS>
+    <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+    <KEY NAME="subject_fk" TYPE="foreign" FIELDS="subjectid" REFTABLE="customassessment_subjects" REFFIELDS="id"/>
+  </KEYS>
+  <INDEXES>
+    <INDEX NAME="subjectid_idx" UNIQUE="false" FIELDS="subjectid"/>
+    <INDEX NAME="name_idx" UNIQUE="false" FIELDS="topicname"/>
+  </INDEXES>
+</TABLE>
+
+  </TABLES>
+
+
+  
+
+</XMLDB>
