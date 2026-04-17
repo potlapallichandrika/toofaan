@@ -11,7 +11,7 @@ class mod_customassessment_mod_form extends moodleform_mod {
         $mform = $this->_form;
 
         /* ================= CONTEXT ================= */
-        if ($this->current->instance) {
+        if (!empty($this->current->instance)) {
             $context = context_module::instance($this->current->coursemodule);
         } else {
             $context = context_course::instance($this->_course->id);
@@ -24,11 +24,13 @@ class mod_customassessment_mod_form extends moodleform_mod {
         ]);
 
         /* ================= NAME ================= */
-        $mform->addElement('text', 'name',
+        $mform->addElement(
+            'text',
+            'name',
             get_string('assessmentname', 'customassessment'),
             ['size' => '64']
         );
-        $mform->setType('name', PARAM_RAW);
+        $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', null, 'required', null, 'client');
 
         /* ================= SUBJECT ================= */
@@ -46,9 +48,9 @@ class mod_customassessment_mod_form extends moodleform_mod {
         $subjectgroup[] = $mform->createElement('select', 'subjectid', '', $subjects);
         $subjectgroup[] = $mform->createElement(
             'html',
-            '<button type="button" class="btn btn-secondary ml-2" id="addsubjectbtn">
-                '.get_string('addnewsubject', 'customassessment').'
-             </button>'
+            '<button type="button" class="btn btn-secondary ml-2" id="addsubjectbtn">'
+                . get_string('addnewsubject', 'customassessment') .
+            '</button>'
         );
 
         $mform->addGroup(
@@ -74,9 +76,9 @@ class mod_customassessment_mod_form extends moodleform_mod {
         $topicgroup[] = $mform->createElement('select', 'topicid', '', $topics);
         $topicgroup[] = $mform->createElement(
             'html',
-            '<button type="button" class="btn btn-secondary ml-2" id="addtopicbtn">
-                '.get_string('addnewtopic', 'customassessment').'
-             </button>'
+            '<button type="button" class="btn btn-secondary ml-2" id="addtopicbtn">'
+                . get_string('addnewtopic', 'customassessment') .
+            '</button>'
         );
 
         $mform->addGroup(
@@ -89,11 +91,10 @@ class mod_customassessment_mod_form extends moodleform_mod {
 
         $mform->disabledIf('topicid', 'subjectid', 'eq', 0);
 
-
-
-
         /* ================= QUESTIONS ================= */
-        $mform->addElement('text', 'numquestions',
+        $mform->addElement(
+            'text',
+            'numquestions',
             get_string('numquestions', 'customassessment'),
             ['size' => 3]
         );
@@ -101,311 +102,377 @@ class mod_customassessment_mod_form extends moodleform_mod {
         $mform->setDefault('numquestions', 10);
         $mform->addRule('numquestions', null, 'required', null, 'client');
 
-/* ================= BLOOM'S LEVEL ================= */
-$bloomslevels = [
-    'Remembering'   => get_string('remembering', 'customassessment'),
-    'Understanding' => get_string('understanding', 'customassessment'),
-    'Applying'      => get_string('applying', 'customassessment'),
-    'Analyzing'     => get_string('analyzing', 'customassessment'),
-    'Evaluating'    => get_string('evaluating', 'customassessment'),
-    'Creating'      => get_string('creating', 'customassessment'),
-];
+        /* ================= BLOOM'S LEVEL ================= */
+        $bloomslevels = [
+            'Remembering'   => get_string('remembering', 'customassessment'),
+            'Understanding' => get_string('understanding', 'customassessment'),
+            'Applying'      => get_string('applying', 'customassessment'),
+            'Analyzing'     => get_string('analyzing', 'customassessment'),
+            'Evaluating'    => get_string('evaluating', 'customassessment'),
+            'Creating'      => get_string('creating', 'customassessment'),
+        ];
 
-$mform->addElement(
-    'select',
-    'bloomslevels',                        
-    get_string('bloomslevel', 'customassessment'),
-    $bloomslevels,
-    [
-        'multiple' => 'multiple',
-        'size'     => 6,                       
-    ]
-);
-$mform->addElement('static', 'blooms-msg', '', '<span id="blooms-msg" style="color: green;"></span>');
+        $mform->addElement(
+            'select',
+            'bloomslevels',
+            get_string('bloomslevel', 'customassessment'),
+            $bloomslevels,
+            [
+                'multiple' => 'multiple',
+                'size'     => 6,
+            ]
+        );
+        $mform->setType('bloomslevels', PARAM_RAW);
+        $mform->addElement('static', 'blooms-msg', '', '<span id="blooms-msg" style="color: green;"></span>');
 
-// Optional but recommended:
-$mform->setType('bloomslevels', PARAM_RAW);
-
-
-
-
-        
         /* ================= SUBJECT MODAL ================= */
         $mform->addElement('html', '
-<div class="modal fade" id="addSubjectModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
+<div class="modal fade" id="addSubjectModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
 
-      <div class="modal-header">
-        <h5 class="modal-title">'.get_string('addnewsubject', 'customassessment').'</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
-      </div>
+            <div class="modal-header">
+                <h5 class="modal-title">' . get_string('addnewsubject', 'customassessment') . '</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="' . s(get_string('closebuttontitle', 'moodle')) . '">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
 
-      <div class="modal-body">
+            <div class="modal-body">
+                <div id="subject-success-msg" class="alert alert-success d-none"></div>
+                <div id="subject-error-msg" class="alert alert-danger d-none"></div>
 
-  <!-- SUCCESS MESSAGE -->
-  <div id="subject-success-msg" class="alert alert-success d-none"></div>
+                <input type="text" id="newsubjectname" class="form-control"
+                    placeholder="' . get_string('subjectname', 'customassessment') . '">
+                <div class="invalid-feedback">' . get_string('required') . '</div>
+            </div>
 
-  <!-- ERROR MESSAGE -->
-  <div id="subject-error-msg" class="alert alert-danger d-none"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    ' . get_string('cancel') . '
+                </button>
+                <button type="button" class="btn btn-primary" id="savesubjectbtn">
+                    ' . get_string('add') . '
+                </button>
+            </div>
 
-  <input type="text" id="newsubjectname" class="form-control"
-         placeholder="'.get_string('subjectname', 'customassessment').'">
-  <div class="invalid-feedback">'.get_string('required').'</div>
-</div>
-
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">
-            '.get_string('cancel').'
-        </button>
-        <button type="button" class="btn btn-primary" id="savesubjectbtn">
-            '.get_string('add').'
-        </button>
-      </div>
-
+        </div>
     </div>
-  </div>
-</div>
-');
-             //topic modal
+</div>');
 
-$mform->addElement('html', '
-<div class="modal fade" id="addTopicModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
+        /* ================= TOPIC MODAL ================= */
+        $mform->addElement('html', '
+<div class="modal fade" id="addTopicModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
 
-      <div class="modal-header">
-        <h5 class="modal-title">'.get_string('addnewtopic', 'customassessment').'</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
-      </div>
+            <div class="modal-header">
+                <h5 class="modal-title">' . get_string('addnewtopic', 'customassessment') . '</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="' . s(get_string('closebuttontitle', 'moodle')) . '">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
 
-      <div class="modal-body">
+            <div class="modal-body">
+                <div id="topic-success-msg" class="alert alert-success d-none"></div>
+                <div id="topic-error-msg" class="alert alert-danger d-none"></div>
 
-  <div id="topic-success-msg" class="alert alert-success d-none"></div>
-  <div id="topic-error-msg" class="alert alert-danger d-none"></div>
+                <input type="text" id="newtopicname" class="form-control"
+                    placeholder="' . get_string('topicname', 'customassessment') . '">
+                <div class="invalid-feedback">' . get_string('required') . '</div>
+            </div>
 
-  <input type="text" id="newtopicname" class="form-control"
-         placeholder="'.get_string('topicname', 'customassessment').'">
-  <div class="invalid-feedback">'.get_string('required').'</div>
-</div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    ' . get_string('cancel') . '
+                </button>
+                <button type="button" class="btn btn-primary" id="savetopicbtn">
+                    ' . get_string('save') . '
+                </button>
+            </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">
-            '.get_string('cancel').'
-        </button>
-        <button type="button" class="btn btn-primary" id="savetopicbtn">
-            '.get_string('save').'
-        </button>
-      </div>
-
+        </div>
     </div>
-  </div>
-</div>
-');
-
+</div>');
 
         /* ================= JAVASCRIPT ================= */
- $PAGE->requires->js_init_code("
-document.addEventListener('DOMContentLoaded', function() {
-
-    /* ================= ADD SUBJECT ================= */
-
-    document.getElementById('addsubjectbtn').onclick = function () {
-
-        var input = document.getElementById('newsubjectname');
-        var successMsg = document.getElementById('subject-success-msg');
-        var errorMsg   = document.getElementById('subject-error-msg');
-
-        input.value = '';
-        input.classList.remove('is-invalid');
-        successMsg.classList.add('d-none');
-        errorMsg.classList.add('d-none');
-
-        $('#addSubjectModal').modal('show');
-    };
-
-    document.getElementById('savesubjectbtn').onclick = function () {
-
-        var input = document.getElementById('newsubjectname');
-        var name  = input.value.trim();
-        var successMsg = document.getElementById('subject-success-msg');
-        var errorMsg   = document.getElementById('subject-error-msg');
-
-        successMsg.classList.add('d-none');
-        errorMsg.classList.add('d-none');
-
-        if (!name) {
-            input.classList.add('is-invalid');
-            return;
-        }
-
-        fetch(M.cfg.wwwroot + '/mod/customassessment/ajax_add_subject.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'sesskey=' + M.cfg.sesskey + '&subjectname=' + encodeURIComponent(name)
-        })
-        .then(r => r.json())
-        .then(data => {
-
-            if (!data.success) {
-                errorMsg.textContent = data.error;
-                errorMsg.classList.remove('d-none');
-                return;
-            }
-
-            var sel = document.getElementById('id_subjectid');
-            sel.add(new Option(data.name, data.id, true, true));
-
-            successMsg.textContent = 'Subject added successfully';
-            successMsg.classList.remove('d-none');
-
-            setTimeout(() => $('#addSubjectModal').modal('hide'), 1200);
-        });
-    };
-
-    $('#addSubjectModal').on('hidden.bs.modal', function () {
-        document.getElementById('newsubjectname').value = '';
-    });
-
-    /* ================= ADD TOPIC ================= */
-
-    document.getElementById('addtopicbtn').onclick = function () {
-
-        var subjectid = document.getElementById('id_subjectid').value;
-        if (!subjectid || subjectid <= 0) {
-            alert('Please select a subject first');
-            return;
-        }
-
-        var input = document.getElementById('newtopicname');
-        input.value = '';
-        input.classList.remove('is-invalid');
-
-        document.getElementById('topic-success-msg').classList.add('d-none');
-        document.getElementById('topic-error-msg').classList.add('d-none');
-
-        $('#addTopicModal').modal('show'); // ✅ now works
-    };
-
-    document.getElementById('savetopicbtn').onclick = function () {
-
-        var input = document.getElementById('newtopicname');
-        var topicname = input.value.trim();
-        var subjectid = document.getElementById('id_subjectid').value;
-
-        var successMsg = document.getElementById('topic-success-msg');
-        var errorMsg   = document.getElementById('topic-error-msg');
-
-        successMsg.classList.add('d-none');
-        errorMsg.classList.add('d-none');
-
-        if (!topicname) {
-            input.classList.add('is-invalid');
-            return;
-        }
-
-        fetch(M.cfg.wwwroot + '/mod/customassessment/ajax_add_topic.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body:
-                'sesskey=' + M.cfg.sesskey +
-                '&topicname=' + encodeURIComponent(topicname) +
-                '&subjectid=' + subjectid
-        })
-        .then(r => r.json())
-        .then(data => {
-
-            if (!data.success) {
-                errorMsg.textContent = data.error || 'Unable to add topic';
-                errorMsg.classList.remove('d-none');
-                return;
-            }
-
-            var sel = document.getElementById('id_topicid');
-            sel.add(new Option(data.name, data.id, true, true));
-
-            successMsg.textContent = 'Topic added successfully';
-            successMsg.classList.remove('d-none');
-
-            setTimeout(function () {
-                $('#addTopicModal').modal('hide');
-            }, 1200);
-        });
-    };
-
-    $('#addTopicModal').on('hidden.bs.modal', function () {
-        document.getElementById('newtopicname').value = '';
-    });
-
-});
-
- /* ================= BLOOM'S LEVEL MULTISELECT ================= */
-    var bloomSelect = document.getElementById('id_bloomslevels');
-    var bloomMsg    = document.getElementById('blooms-msg');
-    var numQuestionsInput = document.getElementById('id_numquestions');
-
-    Array.from(bloomSelect.options).forEach(function(option) {
-    option.addEventListener('mousedown', function(e) {
-        e.preventDefault();          // prevent default multi-select behavior
-        option.selected = !option.selected;
-        bloomSelect.dispatchEvent(new Event('change'));
-    });
-});
-    function updateBloomMsg() {
-        var selected = Array.from(bloomSelect.selectedOptions).map(o => o.value);
-        var numLevels = selected.length;
-        var numQuestions = parseInt(numQuestionsInput.value) || 0;
-        if (numLevels > 0 && numQuestions > 0) {
-            var perLevel = Math.ceil(numQuestions / numLevels);
-            bloomMsg.textContent = 'You selected ' + numLevels + ' level' + (numLevels > 1 ? 's' : '') +
-                                   ' → ' + numLevels + ' × ' + perLevel + ' = ' + (perLevel * numLevels) + ' questions';
+        $PAGE->requires->js_init_code("
+(function() {
+    function ready(fn) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fn);
         } else {
-            bloomMsg.textContent = '';
+            fn();
         }
     }
 
-    bloomSelect.addEventListener('change', updateBloomMsg);
-    numQuestionsInput.addEventListener('input', updateBloomMsg);
+    ready(function() {
+        var addsubjectbtn    = document.getElementById('addsubjectbtn');
+        var savesubjectbtn   = document.getElementById('savesubjectbtn');
+        var addtopicbtn      = document.getElementById('addtopicbtn');
+        var savetopicbtn     = document.getElementById('savetopicbtn');
+        var subjectselect    = document.getElementById('id_subjectid');
+        var topicselect      = document.getElementById('id_topicid');
+        var bloomSelect      = document.getElementById('id_bloomslevels');
+        var bloomMsg         = document.getElementById('blooms-msg');
+        var numQuestionsInput = document.getElementById('id_numquestions');
 
-    // initialize on page load
-    updateBloomMsg();
+        /* ================= SUBJECT MODAL ================= */
+        if (addsubjectbtn) {
+            addsubjectbtn.onclick = function() {
+                var input = document.getElementById('newsubjectname');
+                var successMsg = document.getElementById('subject-success-msg');
+                var errorMsg = document.getElementById('subject-error-msg');
 
-    
+                if (!input || !successMsg || !errorMsg) {
+                    return;
+                }
+
+                input.value = '';
+                input.classList.remove('is-invalid');
+                successMsg.classList.add('d-none');
+                errorMsg.classList.add('d-none');
+
+                if (typeof $ !== 'undefined' && $('#addSubjectModal').length) {
+                    $('#addSubjectModal').modal('show');
+                }
+            };
+        }
+
+        if (savesubjectbtn) {
+            savesubjectbtn.onclick = function() {
+                var input = document.getElementById('newsubjectname');
+                var successMsg = document.getElementById('subject-success-msg');
+                var errorMsg = document.getElementById('subject-error-msg');
+
+                if (!input || !successMsg || !errorMsg || !subjectselect) {
+                    return;
+                }
+
+                var name = input.value.trim();
+
+                successMsg.classList.add('d-none');
+                errorMsg.classList.add('d-none');
+                input.classList.remove('is-invalid');
+
+                if (!name) {
+                    input.classList.add('is-invalid');
+                    return;
+                }
+
+                fetch(M.cfg.wwwroot + '/mod/customassessment/ajax_add_subject.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: 'sesskey=' + encodeURIComponent(M.cfg.sesskey) +
+                          '&subjectname=' + encodeURIComponent(name)
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data.success) {
+                        errorMsg.textContent = data.error || 'Unable to add subject';
+                        errorMsg.classList.remove('d-none');
+                        return;
+                    }
+
+                    subjectselect.add(new Option(data.name, data.id, true, true));
+
+                    successMsg.textContent = 'Subject added successfully';
+                    successMsg.classList.remove('d-none');
+
+                    setTimeout(function() {
+                        if (typeof $ !== 'undefined' && $('#addSubjectModal').length) {
+                            $('#addSubjectModal').modal('hide');
+                        }
+                    }, 1200);
+                })
+                .catch(function() {
+                    errorMsg.textContent = 'Unable to add subject';
+                    errorMsg.classList.remove('d-none');
+                });
+            };
+        }
+
+        if (typeof $ !== 'undefined' && $('#addSubjectModal').length) {
+            $('#addSubjectModal').on('hidden.bs.modal', function() {
+                var input = document.getElementById('newsubjectname');
+                if (input) {
+                    input.value = '';
+                    input.classList.remove('is-invalid');
+                }
+            });
+        }
+
+        /* ================= TOPIC MODAL ================= */
+        if (addtopicbtn) {
+            addtopicbtn.onclick = function() {
+                if (!subjectselect) {
+                    return;
+                }
+
+                var subjectid = subjectselect.value;
+                if (!subjectid || parseInt(subjectid, 10) <= 0) {
+                    alert('Please select a subject first');
+                    return;
+                }
+
+                var input = document.getElementById('newtopicname');
+                var successMsg = document.getElementById('topic-success-msg');
+                var errorMsg = document.getElementById('topic-error-msg');
+
+                if (!input || !successMsg || !errorMsg) {
+                    return;
+                }
+
+                input.value = '';
+                input.classList.remove('is-invalid');
+                successMsg.classList.add('d-none');
+                errorMsg.classList.add('d-none');
+
+                if (typeof $ !== 'undefined' && $('#addTopicModal').length) {
+                    $('#addTopicModal').modal('show');
+                }
+            };
+        }
+
+        if (savetopicbtn) {
+            savetopicbtn.onclick = function() {
+                var input = document.getElementById('newtopicname');
+                var successMsg = document.getElementById('topic-success-msg');
+                var errorMsg = document.getElementById('topic-error-msg');
+
+                if (!input || !successMsg || !errorMsg || !subjectselect || !topicselect) {
+                    return;
+                }
+
+                var topicname = input.value.trim();
+                var subjectid = subjectselect.value;
+
+                successMsg.classList.add('d-none');
+                errorMsg.classList.add('d-none');
+                input.classList.remove('is-invalid');
+
+                if (!subjectid || parseInt(subjectid, 10) <= 0) {
+                    errorMsg.textContent = 'Please select a subject first';
+                    errorMsg.classList.remove('d-none');
+                    return;
+                }
+
+                if (!topicname) {
+                    input.classList.add('is-invalid');
+                    return;
+                }
+
+                fetch(M.cfg.wwwroot + '/mod/customassessment/ajax_add_topic.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: 'sesskey=' + encodeURIComponent(M.cfg.sesskey) +
+                          '&topicname=' + encodeURIComponent(topicname) +
+                          '&subjectid=' + encodeURIComponent(subjectid)
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data.success) {
+                        errorMsg.textContent = data.error || 'Unable to add topic';
+                        errorMsg.classList.remove('d-none');
+                        return;
+                    }
+
+                    topicselect.add(new Option(data.name, data.id, true, true));
+
+                    successMsg.textContent = 'Topic added successfully';
+                    successMsg.classList.remove('d-none');
+
+                    setTimeout(function() {
+                        if (typeof $ !== 'undefined' && $('#addTopicModal').length) {
+                            $('#addTopicModal').modal('hide');
+                        }
+                    }, 1200);
+                })
+                .catch(function() {
+                    errorMsg.textContent = 'Unable to add topic';
+                    errorMsg.classList.remove('d-none');
+                });
+            };
+        }
+
+        if (typeof $ !== 'undefined' && $('#addTopicModal').length) {
+            $('#addTopicModal').on('hidden.bs.modal', function() {
+                var input = document.getElementById('newtopicname');
+                if (input) {
+                    input.value = '';
+                    input.classList.remove('is-invalid');
+                }
+            });
+        }
+
+        /* ================= BLOOM'S LEVEL MULTISELECT ================= */
+        if (bloomSelect) {
+            Array.from(bloomSelect.options).forEach(function(option) {
+                option.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    option.selected = !option.selected;
+                    bloomSelect.dispatchEvent(new Event('change'));
+                });
+            });
+        }
+
+        function updateBloomMsg() {
+            if (!bloomSelect || !bloomMsg || !numQuestionsInput) {
+                return;
+            }
+
+            var selected = Array.from(bloomSelect.selectedOptions).map(function(o) {
+                return o.value;
+            });
+
+            var numLevels = selected.length;
+            var numQuestions = parseInt(numQuestionsInput.value, 10) || 0;
+
+            if (numLevels > 0 && numQuestions > 0) {
+                var perLevel = Math.ceil(numQuestions / numLevels);
+                bloomMsg.textContent =
+                    'You selected ' + numLevels + ' level' + (numLevels > 1 ? 's' : '') +
+                    ' → ' + numLevels + ' × ' + perLevel + ' = ' + (perLevel * numLevels) + ' questions';
+            } else {
+                bloomMsg.textContent = '';
+            }
+        }
+
+        if (bloomSelect) {
+            bloomSelect.addEventListener('change', updateBloomMsg);
+        }
+
+        if (numQuestionsInput) {
+            numQuestionsInput.addEventListener('input', updateBloomMsg);
+        }
+
+        updateBloomMsg();
+    });
+})();
 ");
-
-
-
 
         /* ================= STANDARD ================= */
         $this->standard_coursemodule_elements();
 
-if ($this->current->instance) {
-            // Prepare data object matching form field names
+        if (!empty($this->current->instance)) {
             $toform = (object) [
                 'name'         => $this->current->name,
                 'numquestions' => $this->current->numquestions ?? 10,
+                'subjectid'    => $this->current->subjectid ?? 0,
+                'topicid'      => $this->current->topicid ?? 0,
+                'visible'      => $this->current->visible ?? 1,
+                'groupmode'    => $this->current->groupmode ?? 0,
             ];
 
-            //$toform->subjectid = [0 => ($this->current->subjectid ?? 0)];
-           // $toform->topicid   = [0 => ($this->current->topicid ?? 0)];
+            if (!empty($this->current->bloomslevels)) {
+                $toform->bloomslevels = explode(',', $this->current->bloomslevels);
+            } else {
+                $toform->bloomslevels = [];
+            }
 
-            $toform->subjectid = $this->current->subjectid ?? 0;
-            $toform->topicid   = $this->current->topicid ?? 0;
-
-             if (!empty($this->current->bloomslevels)) {
-        $toform->bloomslevels = explode(',', $this->current->bloomslevels);
-    } else {
-        $toform->bloomslevels = [];
-    }
-
-            $toform->visible = $this->current->visible ?? 1;
-            $toform->groupmode = $this->current->groupmode ?? 0;
-            
             $this->set_data($toform);
         }
 
         $this->add_action_buttons();
     }
 }
-
