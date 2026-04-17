@@ -246,7 +246,7 @@ if($remoteFlag){
 <div style="clear: both"></div>';
 }
 
-//topic name chnages by chandrika
+//topic name chnages and live notification code by chandrika
 echo '<div class="current-activity row">
 <div class="col-md-4 text-left" style="padding-left: 30px;padding-top: 7px;">
         <strong>TOPIC NAME:</strong>
@@ -260,7 +260,7 @@ echo '<div class="current-activity row">
            <strong>STATUS:</strong>STATUS :<span style="color: #51f551; font-weight: bold; margin-left: 10px;" class="progress-activity-status">'.$currentActivityStatus.'</span></div>
        </div>
 
-//live notification code by chandrika
+
 <div style="margin-top: 20px; margin-bottom: 20px; text-align: right; padding: 10px; background: #f0f0f0; border: 1px solid #ddd;">
     <button id="send-message" class="btn btn-primary" style="padding: 14px 28px !important; background: linear-gradient(135deg, #e67e22 0%, #d35400 100%) !important; color: white !important; border: none !important; border-radius: 12px !important; cursor: pointer; font-size: 16px !important; font-weight: 700 !important; box-shadow: 0 6px 16px rgba(230,126,34,0.4) !important; min-width: 200px;">
         📤 Send Notification
@@ -320,7 +320,7 @@ echo '<div class="current-activity row">
         <div id="responseMessage" style="padding:16px 20px; border-radius:10px; margin-top:20px; font-size:15px; font-weight:600; display:none;"></div>
     </div>
 </div>
-//end of live notification code by chandrika
+
 
 <div class="row status-row non-kmit-status">
 
