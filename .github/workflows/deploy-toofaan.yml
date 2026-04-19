@@ -19,6 +19,7 @@ jobs:
       # 2. Deploy to server (safe + no permission issues)
       - name: Deploy to Server
         run: |
+          echo hi
           sudo rsync -av --no-group \
             --exclude='.git' \
             --exclude='.github' \
